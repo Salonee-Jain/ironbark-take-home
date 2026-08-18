@@ -79,6 +79,20 @@ Nothing is ever dropped silently.
 | CAT-SUP-01 | "Fuel supply" vs "Fuel" | **fixed** — canonical category |
 
 `npm run etl` is idempotent: truncate + reload, deterministic output.
+
+**As built: 22 rules, 99 findings.** Two of them were not on the list above and were
+found only by running the pipeline against the real data:
+
+| Rule | Finding | Action |
+|---|---|---|
+| FUEL-MONTH-GAP-01 | **November 2025 has no fuel invoices at all** — October has 8, December has 7, and the meters record a normal month of electricity. Scope 1 is understated for that month. | **flagged** — not interpolated |
+| SUP-ABN-CHECKSUM-01 | All 12 well-formed ABNs fail the ATO checksum (synthetic values) | **flagged once at file level** |
+
+Anomaly detection uses a modified z-score against median absolute deviation rather than
+a fixed multiple of the median. The fixed threshold originally planned (1.6x) missed the
+March 2026 fuel spike, which is only 1.49x the median — but sits 6.1 deviations clear of
+a series that otherwise holds between 0.85x and 1.14x.
+
 **Commit:** `feat(etl): loaders and data-quality rules`
 
 ## Step 5 — Emissions calculation

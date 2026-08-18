@@ -9,6 +9,8 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@ironbark/shared": "*"
+    "@ironbark/db": "*",
+    "@ironbark/shared": "*",
+    "csv-parse": "^7.0.2"
   }
 }
