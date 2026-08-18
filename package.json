@@ -14,8 +14,10 @@
     "typecheck": "npm run typecheck --workspaces --if-present",
     "test": "vitest run",
     "build": "npm run build --workspaces --if-present",
-    "db:up": "docker compose up -d",
+    "db:up": "docker compose up -d --wait",
     "db:down": "docker compose down",
+    "db:reset": "docker compose down -v",
+    "db:check": "npm run check --workspace @ironbark/db",
     "etl": "npm run start --workspace @ironbark/etl",
     "api": "npm run dev --workspace @ironbark/api",
     "web": "npm run dev --workspace @ironbark/web"

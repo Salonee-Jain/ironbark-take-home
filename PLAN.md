@@ -15,7 +15,8 @@ Verify `docker compose up -d` then a connection smoke test.
 **Commit:** `chore: postgres via docker compose`
 
 ## Step 2 — Schema and migrations
-Plain SQL migrations (no ORM lock-in). Tables:
+Plain SQL migrations (no ORM lock-in) in `packages/db/migrations/`, applied by a small
+runner that records what it has already run. Tables:
 
 - `fuel_deliveries` — invoice_no, delivery_date, `date_precision` ('day'|'month'), fuel_type,
   quantity_l (normalised), original_quantity + original_unit (audit trail), cost_aud,

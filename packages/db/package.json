@@ -1,0 +1,24 @@
+{
+  "name": "@ironbark/db",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Connection pool and schema migrations for the Ironbark Ridge database",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "check": "tsx src/check.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@ironbark/shared": "*",
+    "dotenv": "^17.2.3",
+    "pg": "^8.16.3"
+  },
+  "devDependencies": {
+    "@types/pg": "^8.15.5"
+  }
+}

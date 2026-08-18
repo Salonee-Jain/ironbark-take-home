@@ -1,0 +1,40 @@
+# Postgres for local development.
+#
+#   npm run db:up      start (waits until the healthcheck passes)
+#   npm run db:check    verify the host can actually connect
+#   npm run db:down    stop, keeping data
+#   npm run db:reset   stop and destroy the volume
+#
+# Values come from the root .env — copy .env.example first.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: ironbark-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-ironbark}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ironbark}
+      POSTGRES_DB: ${POSTGRES_DB:-ironbark}
+      # Deterministic collation, so ORDER BY on site names and supplier names
+      # sorts identically on every machine that runs this.
+      POSTGRES_INITDB_ARGS: '--locale=C --encoding=UTF8'
+    ports:
+      # Host 5433 by default: a local Postgres on 5432 is common and the
+      # collision is a confusing failure to debug.
+      - '${POSTGRES_PORT:-5433}:5432'
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      # Without this, `docker compose up -d` returns while Postgres is still
+      # starting and the first migration fails on a cold start.
+      test:
+        ['CMD-SHELL', 'pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}']
+      interval: 3s
+      timeout: 5s
+      retries: 15
+      start_period: 5s
+
+volumes:
+  pgdata:
+    name: ironbark_pgdata
