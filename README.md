@@ -25,7 +25,7 @@ npm install
 npm run db:up          # Postgres 16 in Docker, waits until healthy
 npm run db:check       # confirm the host can connect
 npm run etl            # clean and load the source files
-npm run api            # http://localhost:3000
+npm run api            # http://localhost:4000 (docs at /docs)
 npm run web            # http://localhost:5173
 ```
 
