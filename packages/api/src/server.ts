@@ -12,15 +12,23 @@ import { registerRoutes } from './routes/index.js';
  *
  * Layering, outermost in:
  *
- *   routes/        path, schema, and which controller handles it. No logic.
- *   controllers/   the HTTP boundary — read the request, call a service.
+ *   routes/        path, validation schema, and the service call behind it.
+ *                  The handler is a single expression mapping request onto a
+ *                  service argument; anything more belongs in the service.
  *   services/      business rules, shaping, and the judgements that are not
  *                  the database's to make.
  *   repositories/  every SQL statement, and the only place that touches the
  *                  connection pool.
  *   middlewares/   cross-cutting concerns: errors, 404s, timing.
  *
- * The layering earns its place mainly at the repository seam. Emissions
+ * There is no controller layer. For eleven read-only endpoints a controller had
+ * nothing to do but forward its arguments to a service, and a file of functions
+ * that only forward arguments is the ceremony that gives layered architecture a
+ * bad name. If an endpoint later needs real request handling — auth context,
+ * pagination headers, a request body mapped to a command — that is the point to
+ * reintroduce one, for the endpoints that need it.
+ *
+ * The seam that genuinely earns its place is the repository. Emissions
  * arithmetic lives in SQL views precisely so it is reviewable, which makes the
  * queries the part most worth isolating — they can be read as a set, and a
  * service can be tested against a stub without a database.

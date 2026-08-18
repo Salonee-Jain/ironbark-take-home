@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify';
-import * as controller from '../controllers/health.controller.js';
+import * as service from '../services/health.service.js';
 import { errorResponse } from '../schemas/common.schema.js';
 
 export async function healthRoutes(app: FastifyInstance): Promise<void> {
@@ -12,6 +12,7 @@ export async function healthRoutes(app: FastifyInstance): Promise<void> {
         response: { 503: errorResponse },
       },
     },
-    controller.getHealth,
+    // Failure throws ServiceUnavailableError; the middleware renders the 503.
+    service.getHealth,
   );
 }

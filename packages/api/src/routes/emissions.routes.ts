@@ -1,13 +1,18 @@
-import type { FastifyInstance } from 'fastify';
-import * as controller from '../controllers/emissions.controller.js';
+import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { monthParam } from '../schemas/common.schema.js';
+import * as service from '../services/emissions.service.js';
 
 /**
- * Route definitions: path, schema, controller. No logic.
+ * Route definitions: path, schema, and the service call behind it.
  *
- * The schema is here rather than in the controller because it is part of the
- * public contract — it is what Fastify validates and what /docs publishes.
+ * The schema lives here because it is the public contract — what Fastify
+ * validates and what /docs publishes. The handler stays a single expression
+ * that maps the request onto a service argument; anything more than that
+ * belongs in the service.
  */
+
+type MonthRangeQuery = { from?: string; to?: string };
+
 export async function emissionsRoutes(app: FastifyInstance): Promise<void> {
   app.get(
     '/api/emissions/monthly',
@@ -26,7 +31,8 @@ export async function emissionsRoutes(app: FastifyInstance): Promise<void> {
         },
       },
     },
-    controller.getMonthly,
+    (request: FastifyRequest<{ Querystring: MonthRangeQuery }>) =>
+      service.getMonthlyEmissions(request.query),
   );
 
   app.get(
@@ -40,7 +46,7 @@ export async function emissionsRoutes(app: FastifyInstance): Promise<void> {
           'the activity amount and unit alongside the resulting kg CO2e.',
       },
     },
-    controller.getBreakdown,
+    service.getActivityBreakdown,
   );
 
   app.get(
@@ -54,7 +60,7 @@ export async function emissionsRoutes(app: FastifyInstance): Promise<void> {
           'site-area vocabulary in the source, so a Scope 2 site breakdown would be guesswork.',
       },
     },
-    controller.getBySiteArea,
+    service.getScope1BySiteArea,
   );
 
   app.get(
@@ -69,6 +75,6 @@ export async function emissionsRoutes(app: FastifyInstance): Promise<void> {
           'so they are not compared as though whole.',
       },
     },
-    controller.getSummary,
+    service.getSummary,
   );
 }

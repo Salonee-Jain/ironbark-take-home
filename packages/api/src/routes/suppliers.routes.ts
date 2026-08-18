@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify';
-import * as controller from '../controllers/suppliers.controller.js';
+import * as service from '../services/suppliers.service.js';
 
 export async function supplierRoutes(app: FastifyInstance): Promise<void> {
   app.get(
@@ -14,6 +14,6 @@ export async function supplierRoutes(app: FastifyInstance): Promise<void> {
           'consolidatedSpendAud is populated on primary rows only, so summing it gives the true total.',
       },
     },
-    controller.listSuppliers,
+    service.listSuppliers,
   );
 }

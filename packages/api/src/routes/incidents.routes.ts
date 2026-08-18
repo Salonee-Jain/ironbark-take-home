@@ -1,6 +1,7 @@
-import type { FastifyInstance } from 'fastify';
-import * as controller from '../controllers/incidents.controller.js';
+import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { errorResponse, monthParam } from '../schemas/common.schema.js';
+import * as service from '../services/incidents.service.js';
+import type { IncidentQuery } from '../services/incidents.service.js';
 
 export async function incidentRoutes(app: FastifyInstance): Promise<void> {
   app.get(
@@ -29,7 +30,8 @@ export async function incidentRoutes(app: FastifyInstance): Promise<void> {
         },
       },
     },
-    controller.listIncidents,
+    (request: FastifyRequest<{ Querystring: IncidentQuery }>) =>
+      service.listIncidents(request.query),
   );
 
   app.get(
@@ -40,7 +42,7 @@ export async function incidentRoutes(app: FastifyInstance): Promise<void> {
         summary: 'Incident counts by month, type and severity',
       },
     },
-    controller.getTrends,
+    service.getTrends,
   );
 
   app.get(
@@ -61,6 +63,9 @@ export async function incidentRoutes(app: FastifyInstance): Promise<void> {
         response: { 404: errorResponse },
       },
     },
-    controller.getIncidentDetail,
+    // A missing incident throws NotFoundError from the service; the error
+    // middleware renders the 404.
+    (request: FastifyRequest<{ Params: { id: string } }>) =>
+      service.getIncidentDetail(request.params.id),
   );
 }

@@ -1,5 +1,6 @@
-import type { FastifyInstance } from 'fastify';
-import * as controller from '../controllers/dataQuality.controller.js';
+import type { FastifyInstance, FastifyRequest } from 'fastify';
+import * as service from '../services/dataQuality.service.js';
+import type { IssueQuery } from '../services/dataQuality.service.js';
 
 export async function dataQualityRoutes(app: FastifyInstance): Promise<void> {
   app.get(
@@ -14,7 +15,7 @@ export async function dataQualityRoutes(app: FastifyInstance): Promise<void> {
           'needs a human), rejected (excluded from analytics but recorded here in full).',
       },
     },
-    controller.getOverview,
+    service.getOverview,
   );
 
   app.get(
@@ -39,7 +40,8 @@ export async function dataQualityRoutes(app: FastifyInstance): Promise<void> {
         },
       },
     },
-    controller.listIssues,
+    (request: FastifyRequest<{ Querystring: IssueQuery }>) =>
+      service.listIssues(request.query),
   );
 
   app.get(
@@ -53,6 +55,6 @@ export async function dataQualityRoutes(app: FastifyInstance): Promise<void> {
           'nothing is itself information: it says the check ran and passed.',
       },
     },
-    controller.listRules,
+    service.listRules,
   );
 }
