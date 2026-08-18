@@ -1,0 +1,26 @@
+# dependencies
+node_modules/
+
+# build output
+dist/
+*.tsbuildinfo
+
+# environment — never commit real credentials, see .env.example
+.env
+.env.*
+!.env.example
+
+# test / tooling output
+coverage/
+.vitest/
+.vite/
+
+# editors and OS
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# logs
+*.log
+npm-debug.log*

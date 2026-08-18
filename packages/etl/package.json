@@ -1,0 +1,14 @@
+{
+  "name": "@ironbark/etl",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Parses, cleans and loads the Ironbark Ridge source files into Postgres",
+  "scripts": {
+    "start": "tsx src/index.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@ironbark/shared": "*"
+  }
+}
