@@ -12,6 +12,7 @@
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { closePool, withClient } from '@ironbark/db';
+import { loadAiFindings, type AiLoadResult } from './ai/load.js';
 import { IssueCollector } from './issues.js';
 import { loadElectricityReadings } from './load/electricity.js';
 import { loadEmissionFactors } from './load/emissionFactors.js';
@@ -83,7 +84,11 @@ export async function run(): Promise<void> {
   // --- write ----------------------------------------------------------------
   heading('Loading into Postgres');
 
-  await withClient(async (client) => {
+  // Returned from the callback rather than assigned to an outer variable:
+  // TypeScript cannot see that the callback runs, and narrows such a variable
+  // to `null` for the rest of the function.
+  const aiResult = await withClient(async (client) => {
+    let ai: AiLoadResult = null;
     // One transaction for the whole load. A half-loaded database is worse than
     // an empty one because it looks like it worked.
     await client.query('begin');
@@ -97,6 +102,11 @@ export async function run(): Promise<void> {
         suppliers,
         issues: issues.all(),
       });
+
+      // Inside the same transaction: the findings cite incident IDs, and a
+      // database holding one without the other is not a state worth committing.
+      ai = await loadAiFindings(client);
+
       await client.query('commit');
     } catch (error) {
       await client.query('rollback');
@@ -119,7 +129,39 @@ export async function run(): Promise<void> {
     for (const row of rows) {
       console.log(`  ${row.table_name.padEnd(22)} ${row.row_count.padStart(5)}`);
     }
+
+    return ai;
   });
+
+  // --- AI findings ----------------------------------------------------------
+  heading('AI incident findings');
+
+  if (!aiResult) {
+    console.log(
+      '  No cached findings at data/ai/incident_findings.json.\n' +
+        '  Everything else works without them. To generate: set ANTHROPIC_API_KEY, then\n' +
+        '  npm run ai:classify',
+    );
+  } else {
+    console.log(`  loaded                 ${aiResult.loaded}`);
+    console.log(`  psychosocial hazards   ${aiResult.psychosocial}`);
+    console.log(`  severity mismatches    ${aiResult.severityMismatches}`);
+    console.log(`  model                  ${aiResult.model} (${aiResult.promptVersion})`);
+
+    // Loud rather than logged-and-forgotten: a cached finding failing the gate
+    // on reload means the cache and the register have drifted apart.
+    if (aiResult.rejected > 0) {
+      console.log(
+        `\n  WARNING: ${aiResult.rejected} cached finding(s) failed the grounding check against the\n` +
+          '  freshly loaded descriptions and were NOT loaded. Re-run npm run ai:classify -- --force.',
+      );
+    }
+    if (aiResult.skippedMissingIncident > 0) {
+      console.log(
+        `  ${aiResult.skippedMissingIncident} cached finding(s) cite incidents that no longer exist and were skipped.`,
+      );
+    }
+  }
 
   console.log('\nLoad complete.\n');
 }

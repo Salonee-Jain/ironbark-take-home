@@ -20,6 +20,7 @@
     "db:check": "npm run check --workspace @ironbark/db",
     "db:migrate": "npm run migrate --workspace @ironbark/db --",
     "etl": "npm run start --workspace @ironbark/etl",
+    "ai:classify": "npm run ai:classify --workspace @ironbark/etl --",
     "api": "npm run dev --workspace @ironbark/api",
     "web": "npm run dev --workspace @ironbark/web"
   },

@@ -6,11 +6,14 @@
   "description": "Parses, cleans and loads the Ironbark Ridge source files into Postgres",
   "scripts": {
     "start": "tsx src/index.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "ai:classify": "tsx src/ai/classify.ts"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.117.1",
     "@ironbark/db": "*",
     "@ironbark/shared": "*",
-    "csv-parse": "^7.0.2"
+    "csv-parse": "^7.0.2",
+    "zod": "^4.4.3"
   }
 }
