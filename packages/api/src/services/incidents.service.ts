@@ -4,26 +4,47 @@ import { camelCaseKeys, camelCaseRows } from '../utils/case.js';
 
 export type IncidentQuery = {
   month?: string;
+  from?: string;
+  to?: string;
   type?: string;
   severity?: number;
   psychosocial?: boolean;
+  search?: string;
 };
 
-export async function listIncidents(query: IncidentQuery) {
-  const rows = await repository.findIncidents({
-    month: query.month ? `${query.month}-01` : null,
+/** `2026-03` -> `2026-03-01`. Blank and absent both mean "no bound". */
+function toMonthStart(month: string | undefined): string | null {
+  return month ? `${month}-01` : null;
+}
+
+/** Blank strings arrive from cleared form fields; they are not a filter. */
+function toSearch(value: string | undefined): string | null {
+  const trimmed = value?.trim() ?? '';
+  return trimmed === '' ? null : trimmed;
+}
+
+export async function listIncidents(companyId: number, query: IncidentQuery) {
+  const rows = await repository.findIncidents(companyId, {
+    month: toMonthStart(query.month),
+    from: toMonthStart(query.from),
+    to: toMonthStart(query.to),
     typeCode: query.type ?? null,
     severity: query.severity ?? null,
     psychosocial: query.psychosocial ?? null,
+    search: toSearch(query.search),
   });
   return { incidents: camelCaseRows(rows), total: rows.length };
 }
 
-export async function getTrends() {
+export async function getTrends(
+  companyId: number,
+  query: { from?: string; to?: string } = {},
+) {
+  const range = { from: toMonthStart(query.from), to: toMonthStart(query.to) };
   const [byMonth, byType, bySeverity] = await Promise.all([
-    repository.countByMonth(),
-    repository.countByType(),
-    repository.countBySeverity(),
+    repository.countByMonth(companyId, range),
+    repository.countByType(companyId, range),
+    repository.countBySeverity(companyId, range),
   ]);
 
   return {
@@ -46,8 +67,8 @@ export async function getTrends() {
  * it on trust. If `evidenceVerified` is ever false, something is badly wrong
  * and the UI should say so loudly rather than render the finding as fact.
  */
-export async function getIncidentDetail(id: string) {
-  const incident = await repository.findIncidentById(id);
+export async function getIncidentDetail(companyId: number, id: string) {
+  const incident = await repository.findIncidentById(companyId, id);
 
   if (!incident) {
     throw new NotFoundError(
@@ -57,8 +78,8 @@ export async function getIncidentDetail(id: string) {
   }
 
   const [issues, findings] = await Promise.all([
-    repository.findIssuesForSourceRow(incident.source_row_number),
-    repository.findAiFindings(id),
+    repository.findIssuesForSourceRow(companyId, incident.source_row_number),
+    repository.findAiFindings(companyId, id),
   ]);
 
   return {

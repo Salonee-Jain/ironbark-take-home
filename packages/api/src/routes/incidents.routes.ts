@@ -1,12 +1,14 @@
-import type { FastifyInstance, FastifyRequest } from 'fastify';
+import type { FastifyInstance } from 'fastify';
+import { companyIdOf } from '../middlewares/authenticate.js';
 import { errorResponse, monthParam } from '../schemas/common.schema.js';
 import * as service from '../services/incidents.service.js';
 import type { IncidentQuery } from '../services/incidents.service.js';
 
 export async function incidentRoutes(app: FastifyInstance): Promise<void> {
-  app.get(
+  app.get<{ Querystring: IncidentQuery }>(
     '/api/incidents',
     {
+      onRequest: app.authenticate,
       schema: {
         tags: ['incidents'],
         summary: 'Incident register',
@@ -18,6 +20,8 @@ export async function incidentRoutes(app: FastifyInstance): Promise<void> {
           additionalProperties: false,
           properties: {
             month: monthParam,
+            from: monthParam,
+            to: monthParam,
             type: { type: 'string', maxLength: 8 },
             severity: { type: 'integer', minimum: 1, maximum: 3 },
             psychosocial: {
@@ -26,28 +30,44 @@ export async function incidentRoutes(app: FastifyInstance): Promise<void> {
                 'Filter to incidents the AI layer identified as psychosocial hazards, regardless of ' +
                 'how they were originally coded.',
             },
+            search: {
+              type: 'string',
+              maxLength: 120,
+              description:
+                'Case-insensitive match against the description, location and incident id.',
+            },
           },
         },
+        response: { 401: errorResponse },
       },
     },
-    (request: FastifyRequest<{ Querystring: IncidentQuery }>) =>
-      service.listIncidents(request.query),
+    (request) =>
+      service.listIncidents(companyIdOf(request), request.query),
   );
 
-  app.get(
+  app.get<{ Querystring: { from?: string; to?: string } }>(
     '/api/incidents/trends',
     {
+      onRequest: app.authenticate,
       schema: {
         tags: ['incidents'],
         summary: 'Incident counts by month, type and severity',
+        querystring: {
+          type: 'object',
+          additionalProperties: false,
+          properties: { from: monthParam, to: monthParam },
+        },
+        response: { 401: errorResponse },
       },
     },
-    service.getTrends,
+    (request) =>
+      service.getTrends(companyIdOf(request), request.query),
   );
 
-  app.get(
+  app.get<{ Params: { id: string } }>(
     '/api/incidents/:id',
     {
+      onRequest: app.authenticate,
       schema: {
         tags: ['incidents'],
         summary: 'One incident, with its full audit trail',
@@ -60,12 +80,14 @@ export async function incidentRoutes(app: FastifyInstance): Promise<void> {
           required: ['id'],
           properties: { id: { type: 'string', maxLength: 32 } },
         },
-        response: { 404: errorResponse },
+        response: { 401: errorResponse, 404: errorResponse },
       },
     },
     // A missing incident throws NotFoundError from the service; the error
-    // middleware renders the 404.
-    (request: FastifyRequest<{ Params: { id: string } }>) =>
-      service.getIncidentDetail(request.params.id),
+    // middleware renders the 404. An incident belonging to another company is
+    // indistinguishable from one that does not exist, which is the correct
+    // answer to give — confirming it exists would leak that much.
+    (request) =>
+      service.getIncidentDetail(companyIdOf(request), request.params.id),
   );
 }

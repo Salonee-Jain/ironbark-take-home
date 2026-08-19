@@ -12,8 +12,15 @@ const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../..');
 
 let loaded = false;
 
-/** Load the root .env once. Real environment variables always win. */
-function loadEnvFile(): void {
+/**
+ * Load the root .env once. Real environment variables always win.
+ *
+ * Exported because it is no longer only the database that needs it: the API
+ * reads JWT_SECRET at startup, and it does so before anything has touched the
+ * connection pool. Left implicit, the secret would silently be absent and every
+ * restart would invalidate every session for a reason nobody could see.
+ */
+export function loadEnv(): void {
   if (loaded) return;
   loaded = true;
 
@@ -28,7 +35,7 @@ function loadEnvFile(): void {
  * connection attempt time out against a default nobody configured.
  */
 export function loadDatabaseUrl(): string {
-  loadEnvFile();
+  loadEnv();
 
   const url = process.env['DATABASE_URL'];
   if (!url) {

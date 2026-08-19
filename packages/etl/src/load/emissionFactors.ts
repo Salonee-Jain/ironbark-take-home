@@ -1,4 +1,4 @@
-import { readCsv } from '../csv.js';
+import type { CsvFile } from '../csv.js';
 
 /**
  * Emission factors.
@@ -33,8 +33,7 @@ export type EmissionFactorRecord = {
   source: string;
 };
 
-export function loadEmissionFactors(path: string): EmissionFactorRecord[] {
-  const file = readCsv(path);
+export function loadEmissionFactors(file: CsvFile): EmissionFactorRecord[] {
 
   return file.rows.map((row) => {
     const activity = row.value('activity').trim();

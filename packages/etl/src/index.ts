@@ -4,164 +4,169 @@
  * Reads the untouched export from `data/raw/`, normalises it, records every
  * problem it finds, and loads the result into Postgres in a single transaction.
  *
- *   npm run etl
+ *   npm run etl                        load into the demo tenant
+ *   npm run etl -- --company <slug>    load into another tenant
  *
- * Idempotent: it truncates the tables it owns and reloads from source, so
+ * Idempotent: it replaces the tenant's own rows and reloads from source, so
  * running it twice leaves the database in the same state as running it once.
+ *
+ * The cleaning itself lives in `ingest.ts`, shared with `POST /api/uploads`.
+ * This file is the command-line skin over it: reading files, printing a report,
+ * and choosing which company the load belongs to.
  */
+import { readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { closePool, withClient } from '@ironbark/db';
-import { loadAiFindings, type AiLoadResult } from './ai/load.js';
-import { IssueCollector } from './issues.js';
-import { loadElectricityReadings } from './load/electricity.js';
-import { loadEmissionFactors } from './load/emissionFactors.js';
-import { loadFuelDeliveries } from './load/fuel.js';
-import { loadIncidents } from './load/incidents.js';
-import { loadSuppliers } from './load/suppliers.js';
+import {
+  ingestWithClient,
+  INGEST_FILES,
+  type IngestInput,
+  type IngestResult,
+} from './ingest.js';
 import { RULES } from './rules.js';
-import { writeLoad } from './writer.js';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../..');
 const rawDataDir = join(repoRoot, 'data', 'raw');
+
+/** The tenant that owns the sample export shipped with the repo. */
+const DEFAULT_COMPANY_SLUG = 'ironbark-ridge';
 
 function heading(text: string): void {
   console.log(`\n${text}\n${'-'.repeat(text.length)}`);
 }
 
-export async function run(): Promise<void> {
-  const issues = new IssueCollector();
+function companySlugFromArgv(): string {
+  const index = process.argv.indexOf('--company');
+  return index >= 0 ? (process.argv[index + 1] ?? DEFAULT_COMPANY_SLUG) : DEFAULT_COMPANY_SLUG;
+}
 
-  heading('Reading source files');
+function readSourceFiles(): IngestInput {
+  const input: IngestInput = {};
+  for (const name of INGEST_FILES) {
+    input[name] = readFileSync(join(rawDataDir, name), 'utf8');
+  }
+  return input;
+}
 
-  const factors = loadEmissionFactors(join(rawDataDir, 'emission_factors.csv'));
-  console.log(`  emission_factors.csv           ${factors.length} factors`);
-
-  const fuel = loadFuelDeliveries(
-    join(rawDataDir, 'fuel_deliveries.csv'),
-    issues,
-  );
-  console.log(`  fuel_deliveries.csv            ${fuel.length} deliveries loaded`);
-
-  const { meters, readings } = loadElectricityReadings(
-    join(rawDataDir, 'electricity_meter_readings.csv'),
-    issues,
-  );
-  console.log(
-    `  electricity_meter_readings.csv ${readings.length} readings across ${meters.length} meters`,
-  );
-
-  const incidents = loadIncidents(
-    join(rawDataDir, 'incident_register.csv'),
-    issues,
-  );
-  console.log(`  incident_register.csv          ${incidents.length} incidents`);
-
-  const suppliers = loadSuppliers(join(rawDataDir, 'suppliers.csv'), issues);
-  console.log(`  suppliers.csv                  ${suppliers.length} suppliers`);
-
-  // --- data quality summary -------------------------------------------------
+function reportDataQuality(result: IngestResult): void {
   heading('Data quality findings');
 
-  const byRule = issues.countByRule();
-  const sorted = [...byRule.entries()].sort((a, b) => b[1] - a[1]);
-
-  for (const [ruleId, count] of sorted) {
-    const rule = RULES[ruleId];
+  for (const [ruleId, count] of result.issuesByRule) {
+    const rule = RULES[ruleId as keyof typeof RULES];
     console.log(
       `  ${ruleId.padEnd(26)} ${String(count).padStart(3)}  ${rule.defaultAction.padEnd(8)} ${rule.title}`,
     );
   }
 
-  const bySeverity = issues.countBy('severity');
-  const byAction = issues.countBy('action');
+  const bySeverity: Record<string, number> = {};
+  const byAction: Record<string, number> = {};
+  for (const issue of result.issues) {
+    bySeverity[issue.severity] = (bySeverity[issue.severity] ?? 0) + 1;
+    byAction[issue.action] = (byAction[issue.action] ?? 0) + 1;
+  }
+
   console.log(
-    `\n  ${issues.all().length} findings across ${byRule.size} rules` +
+    `\n  ${result.issueCount} findings across ${result.issuesByRule.length} rules` +
       `\n  by severity: ${JSON.stringify(bySeverity)}` +
       `\n  by action:   ${JSON.stringify(byAction)}`,
   );
+}
 
-  // --- write ----------------------------------------------------------------
-  heading('Loading into Postgres');
-
-  // Returned from the callback rather than assigned to an outer variable:
-  // TypeScript cannot see that the callback runs, and narrows such a variable
-  // to `null` for the rest of the function.
-  const aiResult = await withClient(async (client) => {
-    let ai: AiLoadResult = null;
-    // One transaction for the whole load. A half-loaded database is worse than
-    // an empty one because it looks like it worked.
-    await client.query('begin');
-    try {
-      await writeLoad(client, {
-        factors,
-        meters,
-        readings,
-        fuel,
-        incidents,
-        suppliers,
-        issues: issues.all(),
-      });
-
-      // Inside the same transaction: the findings cite incident IDs, and a
-      // database holding one without the other is not a state worth committing.
-      ai = await loadAiFindings(client);
-
-      await client.query('commit');
-    } catch (error) {
-      await client.query('rollback');
-      throw error;
-    }
-
-    const { rows } = await client.query<{
-      table_name: string;
-      row_count: string;
-    }>(`
-      select 'fuel_deliveries' as table_name, count(*)::text as row_count from fuel_deliveries
-      union all select 'electricity_readings', count(*)::text from electricity_readings
-      union all select 'incidents', count(*)::text from incidents
-      union all select 'suppliers', count(*)::text from suppliers
-      union all select 'emission_factors', count(*)::text from emission_factors
-      union all select 'data_quality_issues', count(*)::text from data_quality_issues
-      order by 1
-    `);
-
-    for (const row of rows) {
-      console.log(`  ${row.table_name.padEnd(22)} ${row.row_count.padStart(5)}`);
-    }
-
-    return ai;
-  });
-
-  // --- AI findings ----------------------------------------------------------
+function reportAi(result: IngestResult): void {
   heading('AI incident findings');
 
-  if (!aiResult) {
+  const ai = result.ai;
+  if (!ai) {
     console.log(
       '  No cached findings at data/ai/incident_findings.json.\n' +
         '  Everything else works without them. To generate: set ANTHROPIC_API_KEY, then\n' +
         '  npm run ai:classify',
     );
-  } else {
-    console.log(`  loaded                 ${aiResult.loaded}`);
-    console.log(`  psychosocial hazards   ${aiResult.psychosocial}`);
-    console.log(`  severity mismatches    ${aiResult.severityMismatches}`);
-    console.log(`  model                  ${aiResult.model} (${aiResult.promptVersion})`);
-
-    // Loud rather than logged-and-forgotten: a cached finding failing the gate
-    // on reload means the cache and the register have drifted apart.
-    if (aiResult.rejected > 0) {
-      console.log(
-        `\n  WARNING: ${aiResult.rejected} cached finding(s) failed the grounding check against the\n` +
-          '  freshly loaded descriptions and were NOT loaded. Re-run npm run ai:classify -- --force.',
-      );
-    }
-    if (aiResult.skippedMissingIncident > 0) {
-      console.log(
-        `  ${aiResult.skippedMissingIncident} cached finding(s) cite incidents that no longer exist and were skipped.`,
-      );
-    }
+    return;
   }
+
+  console.log(`  loaded                 ${ai.loaded}`);
+  console.log(`  psychosocial hazards   ${ai.psychosocial}`);
+  console.log(`  severity mismatches    ${ai.severityMismatches}`);
+  console.log(`  model                  ${ai.model} (${ai.promptVersion})`);
+
+  // Loud rather than logged-and-forgotten: a cached finding failing the gate on
+  // reload means the cache and the register have drifted apart.
+  if (ai.rejected > 0) {
+    console.log(
+      `\n  WARNING: ${ai.rejected} cached finding(s) failed the grounding check against the\n` +
+        '  freshly loaded descriptions and were NOT loaded. Re-run npm run ai:classify -- --force.',
+    );
+  }
+  if (ai.skippedMissingIncident > 0) {
+    console.log(
+      `  ${ai.skippedMissingIncident} cached finding(s) cite incidents that no longer exist and were skipped.`,
+    );
+  }
+}
+
+export async function run(): Promise<void> {
+  const slug = companySlugFromArgv();
+
+  heading('Reading source files');
+  const input = readSourceFiles();
+  for (const name of INGEST_FILES) {
+    console.log(`  ${name.padEnd(31)} ${(input[name]?.length ?? 0).toLocaleString()} bytes`);
+  }
+
+  const result = await withClient(async (client) => {
+    const { rows } = await client.query<{ id: number; name: string }>(
+      'select id, name from companies where slug = $1',
+      [slug],
+    );
+    const company = rows[0];
+    if (!company) {
+      throw new Error(
+        `No company with slug "${slug}".\n` +
+          '  The demo tenant is seeded by migration 0007. Run: npm run db:migrate',
+      );
+    }
+
+    console.log(`\n  loading into: ${company.name} (${slug})`);
+
+    // One transaction for the whole load. A half-loaded database is worse than
+    // an empty one because it looks like it worked.
+    await client.query('begin');
+    try {
+      const loaded = await ingestWithClient(client, company.id, input);
+      await client.query(
+        `insert into data_loads (company_id, source, files, row_counts, issue_count, error_count, finished_at)
+         values ($1, 'cli', $2, $3, $4, $5, now())`,
+        [
+          company.id,
+          JSON.stringify(
+            INGEST_FILES.map((name) => ({
+              name,
+              bytes: input[name]?.length ?? 0,
+            })),
+          ),
+          JSON.stringify(loaded.rowCounts),
+          loaded.issueCount,
+          loaded.errorCount,
+        ],
+      );
+      await client.query('commit');
+      return loaded;
+    } catch (error) {
+      await client.query('rollback');
+      throw error;
+    }
+  });
+
+  reportDataQuality(result);
+
+  heading('Loaded into Postgres');
+  for (const [table, count] of Object.entries(result.rowCounts)) {
+    console.log(`  ${table.padEnd(22)} ${String(count).padStart(5)}`);
+  }
+
+  reportAi(result);
 
   console.log('\nLoad complete.\n');
 }

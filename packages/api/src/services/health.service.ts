@@ -1,17 +1,20 @@
 import { ServiceUnavailableError } from '../errors.js';
-import { countLoadedDeliveries } from '../repositories/health.repository.js';
+import { countLoaded } from '../repositories/health.repository.js';
 
 export async function getHealth() {
   try {
-    const loaded = await countLoadedDeliveries();
+    const { companies, fuelDeliveries } = await countLoaded();
     return {
       status: 'ok' as const,
       database: 'connected' as const,
-      fuelDeliveriesLoaded: loaded,
+      companies,
+      fuelDeliveriesLoaded: fuelDeliveries,
       // An empty but reachable database is a distinct state from a broken one,
       // and the fix is different. Say which.
-      dataLoaded: loaded > 0,
-      ...(loaded === 0 ? { hint: 'Database is empty. Run: npm run etl' } : {}),
+      dataLoaded: fuelDeliveries > 0,
+      ...(fuelDeliveries === 0
+        ? { hint: 'Database is empty. Run: npm run etl' }
+        : {}),
     };
   } catch (error) {
     throw new ServiceUnavailableError(

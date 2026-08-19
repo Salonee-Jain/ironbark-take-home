@@ -15,25 +15,40 @@ function toMonthStart(month: string | undefined): string | null {
   return month ? `${month}-01` : null;
 }
 
-export async function getMonthlyEmissions(range: {
-  from?: string;
-  to?: string;
-}) {
-  const rows = await repository.findMonthlyTotals(
-    toMonthStart(range.from),
-    toMonthStart(range.to),
-  );
+export type MonthRangeQuery = { from?: string; to?: string };
+
+function toRange(query: MonthRangeQuery): repository.MonthRange {
+  return { from: toMonthStart(query.from), to: toMonthStart(query.to) };
+}
+
+export async function getMonthlyEmissions(
+  companyId: number,
+  range: MonthRangeQuery,
+) {
+  const rows = await repository.findMonthlyTotals(companyId, toRange(range));
   return { months: camelCaseRows(rows) };
 }
 
-export async function getActivityBreakdown() {
-  return { activities: camelCaseRows(await repository.findActivityBreakdown()) };
+export async function getActivityBreakdown(
+  companyId: number,
+  range: MonthRangeQuery,
+) {
+  return {
+    activities: camelCaseRows(
+      await repository.findActivityBreakdown(companyId, toRange(range)),
+    ),
+  };
 }
 
-export async function getScope1BySiteArea() {
+export async function getScope1BySiteArea(
+  companyId: number,
+  range: MonthRangeQuery,
+) {
   return {
     scope: 1 as const,
-    siteAreas: camelCaseRows(await repository.findScope1BySiteArea()),
+    siteAreas: camelCaseRows(
+      await repository.findScope1BySiteArea(companyId, toRange(range)),
+    ),
     note:
       'Scope 1 only. Fuel deliveries record a site area; the electricity meters are described by ' +
       'function and are never mapped to the site-area vocabulary anywhere in the source, so a Scope 2 ' +
@@ -41,11 +56,11 @@ export async function getScope1BySiteArea() {
   };
 }
 
-export async function getSummary() {
+export async function getSummary(companyId: number) {
   const [totals, financialYears, extremes] = await Promise.all([
-    repository.findPeriodTotals(),
-    repository.findFinancialYears(),
-    repository.findExtremeMonths(),
+    repository.findPeriodTotals(companyId),
+    repository.findFinancialYears(companyId),
+    repository.findExtremeMonths(companyId),
   ]);
 
   return {

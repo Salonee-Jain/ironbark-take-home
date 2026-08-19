@@ -6,18 +6,19 @@ export type IssueQuery = {
   severity?: string;
   action?: string;
   rule?: string;
+  search?: string;
   limit?: number;
 };
 
 const DEFAULT_ISSUE_LIMIT = 200;
 
-export async function getOverview() {
+export async function getOverview(companyId: number) {
   const [totals, byFile, bySeverity, byAction, byRule] = await Promise.all([
-    repository.findTotals(),
-    repository.countByFile(),
-    repository.countBySeverity(),
-    repository.countByAction(),
-    repository.countByRule(),
+    repository.findTotals(companyId),
+    repository.countByFile(companyId),
+    repository.countBySeverity(companyId),
+    repository.countByAction(companyId),
+    repository.countByRule(companyId),
   ]);
 
   return {
@@ -41,22 +42,24 @@ export async function getOverview() {
   };
 }
 
-export async function listIssues(query: IssueQuery) {
+export async function listIssues(companyId: number, query: IssueQuery) {
   const limit = query.limit ?? DEFAULT_ISSUE_LIMIT;
+  const search = query.search?.trim() ?? '';
 
-  const rows = await repository.findIssues({
+  const rows = await repository.findIssues(companyId, {
     sourceFile: query.file ?? null,
     severity: query.severity ?? null,
     action: query.action ?? null,
     ruleId: query.rule ?? null,
+    search: search === '' ? null : search,
     limit,
   });
 
   return { issues: camelCaseRows(rows), returned: rows.length, limit };
 }
 
-export async function listRules() {
-  const rules = await repository.findAllRules();
+export async function listRules(companyId: number) {
+  const rules = await repository.findAllRules(companyId);
 
   return {
     rules: camelCaseRows(rules),

@@ -18,6 +18,8 @@ import { ALL_RULES } from './rules.js';
  */
 
 export type LoadPayload = {
+  /** Owning tenant. Every row written by this function carries it. */
+  companyId: number;
   factors: EmissionFactorRecord[];
   meters: MeterRecord[];
   readings: ElectricityReadingRecord[];
@@ -28,32 +30,63 @@ export type LoadPayload = {
 };
 
 /**
- * Tables the ETL owns. Reference tables seeded by migration 0001 are absent on
- * purpose: they are schema, not load output.
+ * Tables the ETL replaces on every load, in dependency order.
  *
- * `cascade` reaches ai_incident_findings through incidents. That is intended —
- * findings cite incident IDs, so they cannot outlive a reload of the register.
- * They are re-inserted from the committed cache by `npm run ai:classify`.
+ * `truncate` was right when the database held one mine. It is now exactly
+ * wrong: it would empty every tenant's tables to reload one company's upload.
+ * These are deleted `where company_id = $1` instead, which is slower and
+ * correct, and the ordering matters because the deletes are no longer a single
+ * cascading statement.
+ *
+ * Reference tables seeded by migration 0001 are absent on purpose: they are
+ * schema, not load output. `emission_factors` and `data_quality_rules` are
+ * absent too but for a different reason — they are global taxonomy shared by
+ * every tenant, so they are upserted below rather than owned by any one load.
+ *
+ * `ai_incident_findings` is not listed because it cascades from `incidents`.
+ * That is intended: findings cite incident IDs and cannot outlive a reload of
+ * the register. They are re-inserted from the committed cache afterwards.
  */
-const OWNED_TABLES = [
+const COMPANY_OWNED_TABLES = [
   'data_quality_issues',
-  'data_quality_rules',
   'fuel_deliveries',
   'electricity_readings',
   'incidents',
   'suppliers',
   'meters',
-  'emission_factors',
 ];
 
+/**
+ * Map site-area names to ids for one company.
+ *
+ * Two tiers, and the precedence matters. The six seeded areas are global
+ * (`company_id is null`) and shared by every tenant. Anything else is a value
+ * that appeared in *this* company's export and is created against this company,
+ * so one client's pit names never leak into another client's breakdowns.
+ *
+ * A company-specific row wins over a global one of the same name. That case
+ * should not arise — the loader only creates a row when the name is not already
+ * known — but if it ever does, the tenant's own record is the more specific
+ * answer.
+ */
 async function resolveSiteAreas(
   client: PoolClient,
+  companyId: number,
   names: Iterable<string>,
 ): Promise<Map<string, number>> {
-  const { rows } = await client.query<{ id: number; name: string }>(
-    'select id, name from site_areas',
+  const { rows } = await client.query<{
+    id: number;
+    name: string;
+    company_id: number | null;
+  }>(
+    `select id, name, company_id from site_areas
+     where company_id is null or company_id = $1
+     order by company_id nulls first`,
+    [companyId],
   );
-  const byName = new Map(rows.map((r) => [r.name, r.id]));
+
+  const byName = new Map<string, number>();
+  for (const row of rows) byName.set(row.name, row.id);
 
   for (const name of names) {
     if (name === '' || byName.has(name)) continue;
@@ -62,10 +95,10 @@ async function resolveSiteAreas(
     // and the taxonomy drift is visible as `unknown` in the UI. The
     // corresponding data-quality issue is raised by the loader.
     const { rows: inserted } = await client.query<{ id: number }>(
-      `insert into site_areas (name, category, notes)
-       values ($1, 'unknown', 'Seen in source data but not in the seeded taxonomy.')
+      `insert into site_areas (name, category, notes, company_id)
+       values ($1, 'unknown', 'Seen in source data but not in the seeded taxonomy.', $2)
        returning id`,
-      [name],
+      [name, companyId],
     );
     byName.set(name, inserted[0]!.id);
   }
@@ -77,15 +110,33 @@ export async function writeLoad(
   client: PoolClient,
   payload: LoadPayload,
 ): Promise<void> {
-  await client.query(
-    `truncate table ${OWNED_TABLES.join(', ')} restart identity cascade`,
-  );
+  const companyId = payload.companyId;
+
+  // Replace-on-upload, scoped to this tenant. Deletes run child-first because
+  // the cascade that `truncate` gave for free is no longer available.
+  for (const table of COMPANY_OWNED_TABLES) {
+    await client.query(`delete from ${table} where company_id = $1`, [companyId]);
+  }
+
+  // Site areas this company discovered in a previous upload. Dropped with the
+  // rest of its data so a corrected export does not leave a phantom pit behind;
+  // the six global rows are untouched by the `company_id` predicate.
+  await client.query('delete from site_areas where company_id = $1', [companyId]);
 
   // --- emission factors -----------------------------------------------------
+  // Global reference data, upserted rather than replaced. Two tenants must not
+  // be able to disagree about what a litre of diesel emits, and a company whose
+  // upload omits the factors file still needs the factors to exist.
   for (const factor of payload.factors) {
     await client.query(
       `insert into emission_factors (factor_key, activity, scope, unit, kg_co2e_per_unit, source)
-       values ($1, $2, $3, $4, $5, $6)`,
+       values ($1, $2, $3, $4, $5, $6)
+       on conflict (factor_key) do update set
+         activity         = excluded.activity,
+         scope            = excluded.scope,
+         unit             = excluded.unit,
+         kg_co2e_per_unit = excluded.kg_co2e_per_unit,
+         source           = excluded.source`,
       [
         factor.factorKey,
         factor.activity,
@@ -105,14 +156,20 @@ export async function writeLoad(
       .sort();
 
     await client.query(
-      `insert into meters (meter_id, description, first_period, last_period)
-       values ($1, $2, $3, $4)`,
-      [meter.meterId, meter.description, periods[0] ?? null, periods.at(-1) ?? null],
+      `insert into meters (company_id, meter_id, description, first_period, last_period)
+       values ($1, $2, $3, $4, $5)`,
+      [
+        companyId,
+        meter.meterId,
+        meter.description,
+        periods[0] ?? null,
+        periods.at(-1) ?? null,
+      ],
     );
   }
 
   // --- site areas -----------------------------------------------------------
-  const siteAreaIds = await resolveSiteAreas(client, [
+  const siteAreaIds = await resolveSiteAreas(client, companyId, [
     ...payload.fuel.map((f) => f.siteArea),
     ...payload.incidents.map((i) => i.location),
   ]);
@@ -121,11 +178,12 @@ export async function writeLoad(
   for (const delivery of payload.fuel) {
     await client.query(
       `insert into fuel_deliveries (
-         invoice_no, delivery_date, date_precision, fuel_type, factor_key,
+         company_id, invoice_no, delivery_date, date_precision, fuel_type, factor_key,
          quantity_l, cost_aud, site_area_id, is_credit_note,
          original_date, original_quantity, original_unit, original_cost, source_row_number
-       ) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)`,
+       ) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)`,
       [
+        companyId,
         delivery.invoiceNo,
         delivery.deliveryDate,
         delivery.datePrecision,
@@ -148,10 +206,11 @@ export async function writeLoad(
   for (const reading of payload.readings) {
     await client.query(
       `insert into electricity_readings (
-         meter_id, period, consumption_kwh, original_consumption, original_unit,
+         company_id, meter_id, period, consumption_kwh, original_consumption, original_unit,
          unit_correction_factor, source_row_number
-       ) values ($1,$2,$3,$4,$5,$6,$7)`,
+       ) values ($1,$2,$3,$4,$5,$6,$7,$8)`,
       [
+        companyId,
         reading.meterId,
         reading.period,
         reading.consumptionKwh,
@@ -167,10 +226,11 @@ export async function writeLoad(
   for (const incident of payload.incidents) {
     await client.query(
       `insert into incidents (
-         id, source_incident_id, incident_date, site_area_id, location_raw,
+         company_id, id, source_incident_id, incident_date, site_area_id, location_raw,
          type_code, severity, severity_raw, description, source_row_number
-       ) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
+       ) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
       [
+        companyId,
         incident.id,
         incident.sourceIncidentId,
         incident.incidentDate,
@@ -192,10 +252,11 @@ export async function writeLoad(
   for (const supplier of payload.suppliers) {
     const { rows } = await client.query<{ id: number }>(
       `insert into suppliers (
-         supplier_name, name_canonical, abn_raw, abn, abn_valid,
+         company_id, supplier_name, name_canonical, abn_raw, abn, abn_valid,
          category, category_canonical, fy_spend_aud, source_row_number
-       ) values ($1,$2,$3,$4,$5,$6,$7,$8,$9) returning id`,
+       ) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) returning id`,
       [
+        companyId,
         supplier.supplierName,
         supplier.nameCanonical,
         supplier.abnRaw,
@@ -219,10 +280,19 @@ export async function writeLoad(
   }
 
   // --- rule catalogue -------------------------------------------------------
+  // Global, like the emission factors: the rules are ours, not a tenant's, and
+  // the API serves each issue's rationale from here.
   for (const rule of ALL_RULES) {
     await client.query(
       `insert into data_quality_rules (rule_id, title, source_file, category, default_severity, default_action, rationale)
-       values ($1,$2,$3,$4,$5,$6,$7)`,
+       values ($1,$2,$3,$4,$5,$6,$7)
+       on conflict (rule_id) do update set
+         title            = excluded.title,
+         source_file      = excluded.source_file,
+         category         = excluded.category,
+         default_severity = excluded.default_severity,
+         default_action   = excluded.default_action,
+         rationale        = excluded.rationale`,
       [
         rule.ruleId,
         rule.title,
@@ -239,10 +309,11 @@ export async function writeLoad(
   for (const issue of payload.issues) {
     await client.query(
       `insert into data_quality_issues (
-         rule_id, source_file, source_row_number, record_key, field,
+         company_id, rule_id, source_file, source_row_number, record_key, field,
          severity, action, description, original_value, resolved_value
-       ) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
+       ) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
       [
+        companyId,
         issue.ruleId,
         issue.sourceFile,
         issue.sourceRowNumber,

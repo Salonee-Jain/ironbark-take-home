@@ -36,9 +36,16 @@ export type CsvFile = {
   rows: CsvRow[];
 };
 
-export function readCsv(path: string): CsvFile {
-  const text = readFileSync(path, 'utf8');
-
+/**
+ * Parse CSV text.
+ *
+ * Split out from `readCsv` when uploads arrived: a file posted to the API is a
+ * buffer in memory, and the alternative was writing it to a temp path purely so
+ * the parser could read it back. `label` is only ever used in error messages —
+ * a filesystem path from the CLI, an uploaded filename from the API — so the
+ * error still names something the reader can go and open.
+ */
+export function parseCsv(text: string, label: string): CsvFile {
   const firstLine = text.split('\n', 1)[0] ?? '';
   const rawHeaders = parse(firstLine, { columns: false })[0] as string[];
   const headers = rawHeaders.map((h) => h.trim());
@@ -65,7 +72,7 @@ export function readCsv(path: string): CsvFile {
     .filter((line) => line.trim() !== '').length;
   if (records.length !== nonEmptyLines - 1) {
     throw new Error(
-      `${path}: parsed ${records.length} records from ${nonEmptyLines - 1} data lines. ` +
+      `${label}: parsed ${records.length} records from ${nonEmptyLines - 1} data lines. ` +
         'A field probably contains a newline, which would make reported line numbers wrong.',
     );
   }
@@ -80,4 +87,9 @@ export function readCsv(path: string): CsvFile {
       record,
     })),
   };
+}
+
+/** Read and parse a CSV from disk. The CLI path; the API uses `parseCsv`. */
+export function readCsv(path: string): CsvFile {
+  return parseCsv(readFileSync(path, 'utf8'), path);
 }

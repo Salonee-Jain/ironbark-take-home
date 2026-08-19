@@ -1,4 +1,4 @@
-import { readCsv } from '../csv.js';
+import type { CsvFile } from '../csv.js';
 import type { IssueCollector } from '../issues.js';
 import { canonicaliseEntityName, compareEntities, normaliseAbn } from '../normalise/index.js';
 
@@ -17,10 +17,9 @@ export type SupplierRecord = {
 };
 
 export function loadSuppliers(
-  path: string,
+  file: CsvFile,
   issues: IssueCollector,
 ): SupplierRecord[] {
-  const file = readCsv(path);
 
   const records: SupplierRecord[] = file.rows.map((row) => {
     const supplierName = row.value('supplier_name').trim();

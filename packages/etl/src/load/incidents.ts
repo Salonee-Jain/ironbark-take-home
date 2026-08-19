@@ -1,5 +1,5 @@
 import type { IncidentSeverity } from '@ironbark/shared';
-import { readCsv } from '../csv.js';
+import type { CsvFile } from '../csv.js';
 import type { IssueCollector } from '../issues.js';
 import { normaliseDate, normaliseSeverity } from '../normalise/index.js';
 import { KNOWN_INCIDENT_TYPE_CODES } from '../reference.js';
@@ -41,10 +41,9 @@ const FLEET_LOCATIONS = new Set(['Haul Fleet', 'Light Vehicles']);
 const ID_SEQUENCE_GAP = 20;
 
 export function loadIncidents(
-  path: string,
+  file: CsvFile,
   issues: IssueCollector,
 ): IncidentRecord[] {
-  const file = readCsv(path);
   const records: IncidentRecord[] = [];
 
   const seenIds = new Map<string, number>();

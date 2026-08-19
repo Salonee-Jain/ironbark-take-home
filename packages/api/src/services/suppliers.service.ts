@@ -1,8 +1,8 @@
 import * as repository from '../repositories/suppliers.repository.js';
 import { camelCaseRows } from '../utils/case.js';
 
-export async function listSuppliers() {
-  const rows = await repository.findSuppliers();
+export async function listSuppliers(companyId: number) {
+  const rows = await repository.findSuppliers(companyId);
 
   // Only primary rows carry a consolidated figure, so this sums each entity
   // exactly once even though duplicates remain in the list.

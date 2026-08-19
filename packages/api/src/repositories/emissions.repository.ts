@@ -9,6 +9,13 @@ import { getPool } from '@ironbark/db';
  *
  * Repositories return rows as the database shapes them — snake_case, no derived
  * fields. Interpretation is the service's job.
+ *
+ * **Tenancy.** `companyId` is the first parameter of every function here and
+ * `$1` of every statement, without exception and without a default. That is
+ * deliberately monotonous: a company filter that is sometimes optional is a
+ * company filter that will sometimes be omitted, and the failure mode is not an
+ * error — it is one client's fuel silently added to another client's report.
+ * The value only ever comes from the verified session cookie.
  */
 
 export type MonthlyEmissionsRow = {
@@ -73,9 +80,12 @@ export type ExtremeMonthRow = {
   kind: 'highest' | 'lowest';
 };
 
+/** Inclusive month bounds as `YYYY-MM-01`, or null for open-ended. */
+export type MonthRange = { from: string | null; to: string | null };
+
 export async function findMonthlyTotals(
-  fromMonthStart: string | null,
-  toMonthStart: string | null,
+  companyId: number,
+  range: MonthRange,
 ): Promise<MonthlyEmissionsRow[]> {
   const { rows } = await getPool().query<MonthlyEmissionsRow>(
     `select
@@ -91,15 +101,19 @@ export async function findMonthlyTotals(
        has_quality_flags,
        has_imprecise_dates
      from v_monthly_emissions_totals
-     where ($1::date is null or month >= $1::date)
-       and ($2::date is null or month <= $2::date)
+     where company_id = $1
+       and ($2::date is null or month >= $2::date)
+       and ($3::date is null or month <= $3::date)
      order by month`,
-    [fromMonthStart, toMonthStart],
+    [companyId, range.from, range.to],
   );
   return rows;
 }
 
-export async function findActivityBreakdown(): Promise<ActivityBreakdownRow[]> {
+export async function findActivityBreakdown(
+  companyId: number,
+  range: MonthRange,
+): Promise<ActivityBreakdownRow[]> {
   const { rows } = await getPool().query<ActivityBreakdownRow>(
     `select
        to_char(month, 'YYYY-MM') as month,
@@ -112,12 +126,19 @@ export async function findActivityBreakdown(): Promise<ActivityBreakdownRow[]> {
        contributing_records,
        has_imprecise_dates
      from v_monthly_emissions
+     where company_id = $1
+       and ($2::date is null or month >= $2::date)
+       and ($3::date is null or month <= $3::date)
      order by month, scope, activity`,
+    [companyId, range.from, range.to],
   );
   return rows;
 }
 
-export async function findScope1BySiteArea(): Promise<SiteAreaRow[]> {
+export async function findScope1BySiteArea(
+  companyId: number,
+  range: MonthRange,
+): Promise<SiteAreaRow[]> {
   const { rows } = await getPool().query<SiteAreaRow>(
     `select
        site_area,
@@ -127,13 +148,27 @@ export async function findScope1BySiteArea(): Promise<SiteAreaRow[]> {
        sum(kg_co2e)        as kg_co2e,
        sum(delivery_count) as delivery_count
      from v_scope1_by_site_area
+     where company_id = $1
+       and ($2::date is null or month >= $2::date)
+       and ($3::date is null or month <= $3::date)
      group by site_area, site_area_category, fuel_type
      order by sum(kg_co2e) desc`,
+    [companyId, range.from, range.to],
   );
   return rows;
 }
 
-export async function findPeriodTotals(): Promise<PeriodTotalsRow | undefined> {
+/**
+ * Period totals.
+ *
+ * Unfiltered by month on purpose: this is the headline for the whole export,
+ * and a figure that silently moved when someone dragged a date filter would be
+ * the wrong kind of responsive. The filtered equivalent is the sum of
+ * `findMonthlyTotals`.
+ */
+export async function findPeriodTotals(
+  companyId: number,
+): Promise<PeriodTotalsRow | undefined> {
   const { rows } = await getPool().query<PeriodTotalsRow>(
     `select
        sum(scope1_kg_co2e)            as scope1_kg_co2e,
@@ -143,12 +178,16 @@ export async function findPeriodTotals(): Promise<PeriodTotalsRow | undefined> {
        to_char(min(month), 'YYYY-MM') as first_month,
        to_char(max(month), 'YYYY-MM') as last_month,
        sum(quality_error_count)       as quality_error_count
-     from v_monthly_emissions_totals`,
+     from v_monthly_emissions_totals
+     where company_id = $1`,
+    [companyId],
   );
   return rows[0];
 }
 
-export async function findFinancialYears(): Promise<FinancialYearRow[]> {
+export async function findFinancialYears(
+  companyId: number,
+): Promise<FinancialYearRow[]> {
   const { rows } = await getPool().query<FinancialYearRow>(
     `select
        financial_year,
@@ -160,18 +199,25 @@ export async function findFinancialYears(): Promise<FinancialYearRow[]> {
        to_char(first_month, 'YYYY-MM') as first_month,
        to_char(last_month, 'YYYY-MM')  as last_month
      from v_financial_year_emissions
+     where company_id = $1
      order by financial_year`,
+    [companyId],
   );
   return rows;
 }
 
-export async function findExtremeMonths(): Promise<ExtremeMonthRow[]> {
+export async function findExtremeMonths(
+  companyId: number,
+): Promise<ExtremeMonthRow[]> {
   const { rows } = await getPool().query<ExtremeMonthRow>(
     `(select to_char(month,'YYYY-MM') as month, total_kg_co2e, 'highest' as kind
-        from v_monthly_emissions_totals order by total_kg_co2e desc limit 1)
+        from v_monthly_emissions_totals where company_id = $1
+        order by total_kg_co2e desc limit 1)
      union all
      (select to_char(month,'YYYY-MM'), total_kg_co2e, 'lowest'
-        from v_monthly_emissions_totals order by total_kg_co2e asc limit 1)`,
+        from v_monthly_emissions_totals where company_id = $1
+        order by total_kg_co2e asc limit 1)`,
+    [companyId],
   );
   return rows;
 }

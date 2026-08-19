@@ -1,5 +1,5 @@
 import type { DatePrecision } from '@ironbark/shared';
-import { readCsv } from '../csv.js';
+import type { CsvFile } from '../csv.js';
 import type { IssueCollector } from '../issues.js';
 import {
   impliedPricePerLitre,
@@ -34,10 +34,9 @@ export type FuelDeliveryRecord = {
 const LIGHT_VEHICLE_AREAS = new Set(['Light Vehicles']);
 
 export function loadFuelDeliveries(
-  path: string,
+  file: CsvFile,
   issues: IssueCollector,
 ): FuelDeliveryRecord[] {
-  const file = readCsv(path);
 
   if (file.hasUntrimmedHeaders) {
     issues.add({

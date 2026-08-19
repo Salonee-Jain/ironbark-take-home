@@ -15,7 +15,9 @@ export type SupplierRow = {
   consolidated_spend_aud: number | null;
 };
 
-export async function findSuppliers(): Promise<SupplierRow[]> {
+export async function findSuppliers(
+  companyId: number,
+): Promise<SupplierRow[]> {
   const { rows } = await getPool().query<SupplierRow>(
     `select
        s.id,
@@ -34,12 +36,15 @@ export async function findSuppliers(): Promise<SupplierRow[]> {
        case
          when s.duplicate_of_id is not null then null
          else s.fy_spend_aud + coalesce((
-           select sum(d.fy_spend_aud) from suppliers d where d.duplicate_of_id = s.id
+           select sum(d.fy_spend_aud) from suppliers d
+           where d.duplicate_of_id = s.id and d.company_id = s.company_id
          ), 0)
        end as consolidated_spend_aud
      from suppliers s
      left join suppliers primary_row on primary_row.id = s.duplicate_of_id
+     where s.company_id = $1
      order by s.fy_spend_aud desc`,
+    [companyId],
   );
   return rows;
 }

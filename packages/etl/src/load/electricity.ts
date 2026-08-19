@@ -1,4 +1,4 @@
-import { readCsv } from '../csv.js';
+import type { CsvFile } from '../csv.js';
 import type { IssueCollector } from '../issues.js';
 import { normaliseDate } from '../normalise/index.js';
 import { isOutlier, median, modifiedZScore } from '../stats.js';
@@ -37,10 +37,9 @@ const CORRECTION_SANITY_RANGE = { low: 0.2, high: 5 };
 
 
 export function loadElectricityReadings(
-  path: string,
+  file: CsvFile,
   issues: IssueCollector,
 ): { meters: MeterRecord[]; readings: ElectricityReadingRecord[] } {
-  const file = readCsv(path);
 
   type StagedReading = {
     meterId: string;

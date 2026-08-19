@@ -1,10 +1,16 @@
 import { getPool } from '@ironbark/db';
 
 export type IncidentFilters = {
+  /** A single month, `YYYY-MM-01`. Wins over the range when both are set. */
   month: string | null;
+  /** Inclusive month bounds, `YYYY-MM-01`. */
+  from: string | null;
+  to: string | null;
   typeCode: string | null;
   severity: number | null;
   psychosocial: boolean | null;
+  /** Free text matched against the description, location and id. */
+  search: string | null;
 };
 
 export type IncidentListRow = {
@@ -73,6 +79,7 @@ export type SeverityCountRow = {
 };
 
 export async function findIncidents(
+  companyId: number,
   filters: IncidentFilters,
 ): Promise<IncidentListRow[]> {
   const { rows } = await getPool().query<IncidentListRow>(
@@ -100,24 +107,47 @@ export async function findIncidents(
        select f2.is_psychosocial, f2.severity_mismatch, f2.category
        from ai_incident_findings f2
        where f2.incident_id = i.id
+         and f2.company_id = i.company_id
        order by f2.created_at desc
        limit 1
      ) f on true
      left join data_quality_issues q
-            on q.source_file = 'incident_register.csv'
+            on q.company_id = i.company_id
+           and q.source_file = 'incident_register.csv'
            and q.source_row_number = i.source_row_number
-     where ($1::date is null or date_trunc('month', i.incident_date) = $1::date)
-       and ($2::text is null or i.type_code = $2::text)
-       and ($3::int  is null or i.severity = $3::int)
-       and ($4::bool is null or coalesce(f.is_psychosocial, false) = $4::bool)
-     group by i.id, t.label, f.is_psychosocial, f.severity_mismatch, f.category
+     where i.company_id = $1
+       and ($2::date is null or date_trunc('month', i.incident_date) = $2::date)
+       and ($3::date is null or i.incident_date >= $3::date)
+       and ($4::date is null or i.incident_date < ($4::date + interval '1 month'))
+       and ($5::text is null or i.type_code = $5::text)
+       and ($6::int  is null or i.severity = $6::int)
+       and ($7::bool is null or coalesce(f.is_psychosocial, false) = $7::bool)
+       -- Case-insensitive contains across the three fields someone would
+       -- actually search by. Not full-text: the register is 42 rows, and a
+       -- tsvector index here would be ceremony that has to be kept in sync.
+       and ($8::text is null or (
+             i.description ilike '%' || $8 || '%'
+          or i.location_raw ilike '%' || $8 || '%'
+          or i.id ilike '%' || $8 || '%'
+       ))
+     group by i.id, i.company_id, t.label, f.is_psychosocial, f.severity_mismatch, f.category
      order by i.incident_date, i.id`,
-    [filters.month, filters.typeCode, filters.severity, filters.psychosocial],
+    [
+      companyId,
+      filters.month,
+      filters.from,
+      filters.to,
+      filters.typeCode,
+      filters.severity,
+      filters.psychosocial,
+      filters.search,
+    ],
   );
   return rows;
 }
 
 export async function findIncidentById(
+  companyId: number,
   id: string,
 ): Promise<IncidentDetailRow | undefined> {
   const { rows } = await getPool().query<IncidentDetailRow>(
@@ -134,13 +164,14 @@ export async function findIncidentById(
        i.source_row_number
      from incidents i
      left join incident_types t on t.code = i.type_code
-     where i.id = $1`,
-    [id],
+     where i.company_id = $1 and i.id = $2`,
+    [companyId, id],
   );
   return rows[0];
 }
 
 export async function findIssuesForSourceRow(
+  companyId: number,
   sourceRowNumber: number,
 ): Promise<IncidentIssueRow[]> {
   const { rows } = await getPool().query<IncidentIssueRow>(
@@ -148,29 +179,34 @@ export async function findIssuesForSourceRow(
             q.severity, q.action, q.description, q.original_value, q.resolved_value
      from data_quality_issues q
      join data_quality_rules r on r.rule_id = q.rule_id
-     where q.source_file = 'incident_register.csv'
-       and q.source_row_number = $1
+     where q.company_id = $1
+       and q.source_file = 'incident_register.csv'
+       and q.source_row_number = $2
      order by q.severity, q.rule_id`,
-    [sourceRowNumber],
+    [companyId, sourceRowNumber],
   );
   return rows;
 }
 
 export async function findAiFindings(
+  companyId: number,
   incidentId: string,
 ): Promise<AiFindingRow[]> {
   const { rows } = await getPool().query<AiFindingRow>(
     `select category, is_psychosocial, severity_assessment, severity_mismatch,
             confidence, evidence_quote, rationale, model, prompt_version, created_at
      from ai_incident_findings
-     where incident_id = $1
+     where company_id = $1 and incident_id = $2
      order by created_at desc`,
-    [incidentId],
+    [companyId, incidentId],
   );
   return rows;
 }
 
-export async function countByMonth(): Promise<MonthlyIncidentRow[]> {
+export async function countByMonth(
+  companyId: number,
+  range: { from: string | null; to: string | null },
+): Promise<MonthlyIncidentRow[]> {
   const { rows } = await getPool().query<MonthlyIncidentRow>(
     `select
        to_char(month, 'YYYY-MM') as month,
@@ -179,31 +215,49 @@ export async function countByMonth(): Promise<MonthlyIncidentRow[]> {
        sum(incident_count) filter (where severity = 2)::int as severity_2,
        sum(incident_count) filter (where severity = 1)::int as severity_1
      from v_incident_monthly
+     where company_id = $1
+       and ($2::date is null or month >= $2::date)
+       and ($3::date is null or month <= $3::date)
      group by month
      order by month`,
+    [companyId, range.from, range.to],
   );
   return rows;
 }
 
-export async function countByType(): Promise<TypeCountRow[]> {
+export async function countByType(
+  companyId: number,
+  range: { from: string | null; to: string | null },
+): Promise<TypeCountRow[]> {
   const { rows } = await getPool().query<TypeCountRow>(
     `select
        type_code,
        coalesce(type_label, 'Unknown code') as type_label,
        sum(incident_count)::int             as incident_count
      from v_incident_monthly
+     where company_id = $1
+       and ($2::date is null or month >= $2::date)
+       and ($3::date is null or month <= $3::date)
      group by type_code, type_label
      order by sum(incident_count) desc`,
+    [companyId, range.from, range.to],
   );
   return rows;
 }
 
-export async function countBySeverity(): Promise<SeverityCountRow[]> {
+export async function countBySeverity(
+  companyId: number,
+  range: { from: string | null; to: string | null },
+): Promise<SeverityCountRow[]> {
   const { rows } = await getPool().query<SeverityCountRow>(
     `select severity, sum(incident_count)::int as incident_count
      from v_incident_monthly
+     where company_id = $1
+       and ($2::date is null or month >= $2::date)
+       and ($3::date is null or month <= $3::date)
      group by severity
      order by severity`,
+    [companyId, range.from, range.to],
   );
   return rows;
 }

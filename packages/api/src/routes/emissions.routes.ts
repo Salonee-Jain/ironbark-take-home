@@ -1,5 +1,6 @@
-import type { FastifyInstance, FastifyRequest } from 'fastify';
-import { monthParam } from '../schemas/common.schema.js';
+import type { FastifyInstance } from 'fastify';
+import { companyIdOf } from '../middlewares/authenticate.js';
+import { errorResponse, monthParam } from '../schemas/common.schema.js';
 import * as service from '../services/emissions.service.js';
 
 /**
@@ -9,14 +10,20 @@ import * as service from '../services/emissions.service.js';
  * validates and what /docs publishes. The handler stays a single expression
  * that maps the request onto a service argument; anything more than that
  * belongs in the service.
+ *
+ * Every route in this group carries `onRequest: app.authenticate` and reads its
+ * company from the verified session, never from the request. There is
+ * deliberately no `?company=` parameter anywhere in this API: a tenant
+ * identifier a caller can type is a tenant identifier a caller can change.
  */
 
 type MonthRangeQuery = { from?: string; to?: string };
 
 export async function emissionsRoutes(app: FastifyInstance): Promise<void> {
-  app.get(
+  app.get<{ Querystring: MonthRangeQuery }>(
     '/api/emissions/monthly',
     {
+      onRequest: app.authenticate,
       schema: {
         tags: ['emissions'],
         summary: 'Monthly emissions by scope',
@@ -29,43 +36,61 @@ export async function emissionsRoutes(app: FastifyInstance): Promise<void> {
           additionalProperties: false,
           properties: { from: monthParam, to: monthParam },
         },
+        response: { 401: errorResponse },
       },
     },
-    (request: FastifyRequest<{ Querystring: MonthRangeQuery }>) =>
-      service.getMonthlyEmissions(request.query),
+    (request) =>
+      service.getMonthlyEmissions(companyIdOf(request), request.query),
   );
 
-  app.get(
+  app.get<{ Querystring: MonthRangeQuery }>(
     '/api/emissions/breakdown',
     {
+      onRequest: app.authenticate,
       schema: {
         tags: ['emissions'],
         summary: 'Emissions by activity',
         description:
           'The per-activity rows behind the monthly totals — diesel, petrol, grid electricity — with ' +
           'the activity amount and unit alongside the resulting kg CO2e.',
+        querystring: {
+          type: 'object',
+          additionalProperties: false,
+          properties: { from: monthParam, to: monthParam },
+        },
+        response: { 401: errorResponse },
       },
     },
-    service.getActivityBreakdown,
+    (request) =>
+      service.getActivityBreakdown(companyIdOf(request), request.query),
   );
 
-  app.get(
+  app.get<{ Querystring: MonthRangeQuery }>(
     '/api/emissions/by-site-area',
     {
+      onRequest: app.authenticate,
       schema: {
         tags: ['emissions'],
         summary: 'Scope 1 by site area',
         description:
           'Scope 1 only. The electricity meters are described by function and never mapped to the ' +
           'site-area vocabulary in the source, so a Scope 2 site breakdown would be guesswork.',
+        querystring: {
+          type: 'object',
+          additionalProperties: false,
+          properties: { from: monthParam, to: monthParam },
+        },
+        response: { 401: errorResponse },
       },
     },
-    service.getScope1BySiteArea,
+    (request) =>
+      service.getScope1BySiteArea(companyIdOf(request), request.query),
   );
 
   app.get(
     '/api/emissions/summary',
     {
+      onRequest: app.authenticate,
       schema: {
         tags: ['emissions'],
         summary: 'Period and financial-year totals',
@@ -73,8 +98,9 @@ export async function emissionsRoutes(app: FastifyInstance): Promise<void> {
           'Headline totals for the export and per Australian financial year. FY2026 (Jul 2025 - ' +
           'Jun 2026) is the only complete year in this data; partial years carry isCompleteYear false ' +
           'so they are not compared as though whole.',
+        response: { 401: errorResponse },
       },
     },
-    service.getSummary,
+    (request) => service.getSummary(companyIdOf(request)),
   );
 }
