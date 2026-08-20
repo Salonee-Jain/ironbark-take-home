@@ -6,7 +6,15 @@
  * server actually accepts.
  */
 
-const MONTH_PATTERN = '^\\d{4}-\\d{2}$';
+/**
+ * The month component is range-checked, not merely counted.
+ *
+ * `\d{2}` accepts `2026-13`, which then reaches Postgres and fails casting to a
+ * date — a 500 on what is plainly a bad request. Validation is the layer that
+ * should say so, and it should say so in the OpenAPI document too, which is
+ * generated from this same object.
+ */
+const MONTH_PATTERN = '^\\d{4}-(0[1-9]|1[0-2])$';
 
 export const monthParam = {
   type: 'string',
