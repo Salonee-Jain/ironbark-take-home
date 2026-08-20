@@ -56,4 +56,13 @@ The grounding gate, the prompt, and the batching are identical either way — a 
 only makes the wire call, so nothing about which findings are acceptable can change with
 the vendor.
 
-> Work in progress. The full run-and-verify instructions land with the write-up in step 14.
+## Where to look
+
+[`WRITEUP.md`](./WRITEUP.md) is the document to read: how to run it, every data problem
+found and what was done about each, the March 2026 cross-dataset finding, an account of
+how AI tools were used and what they got wrong, and what would come next.
+
+```bash
+npm test          # 228 tests; the database suites skip if Postgres is down
+npm run writeup   # regenerate the data-quality tables from the rule engine
+```

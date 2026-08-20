@@ -7,7 +7,8 @@
   "scripts": {
     "start": "tsx src/index.ts",
     "typecheck": "tsc --noEmit",
-    "ai:classify": "tsx src/ai/classify.ts"
+    "ai:classify": "tsx src/ai/classify.ts",
+    "writeup": "tsx src/report/writeup.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.117.1",
