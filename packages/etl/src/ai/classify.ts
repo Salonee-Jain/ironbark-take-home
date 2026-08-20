@@ -1,16 +1,15 @@
 /**
  * Incident classification.
  *
- *   npm run ai:classify              classify anything not already cached
- *   npm run ai:classify -- --force   reclassify everything
+ *   npm run ai:classify                        classify anything not already cached
+ *   npm run ai:classify -- --force             reclassify everything
+ *   npm run ai:classify -- --provider=openai   choose the vendor for this run
  *
- * Reads incidents from the database, sends them to Claude in batches, verifies
- * every finding against its source record, and writes the survivors to a cache
- * committed to the repo. Requires ANTHROPIC_API_KEY; nothing else in the
- * project does.
+ * Reads incidents from the database, sends them to the configured model in
+ * batches, verifies every finding against its source record, and writes the
+ * survivors to a cache committed to the repo. Requires ANTHROPIC_API_KEY or
+ * OPENAI_API_KEY; nothing else in the project needs either.
  */
-import Anthropic from '@anthropic-ai/sdk';
-import { zodOutputFormat } from '@anthropic-ai/sdk/helpers/zod';
 import { closePool, getPool } from '@ironbark/db';
 import { writeCache, readCache, type FindingsCache } from './cache.js';
 import {
@@ -27,7 +26,7 @@ import {
   SYSTEM_PROMPT,
   type PromptIncident,
 } from './prompt.js';
-import { BatchResponseSchema } from './schema.js';
+import { providerFlag, resolveProvider, type ChatTurn } from './providers/index.js';
 
 /**
  * Incidents per request.
@@ -37,13 +36,6 @@ import { BatchResponseSchema } from './schema.js';
  * rather than re-sent 42 times.
  */
 const BATCH_SIZE = 8;
-
-/** Per-million-token rates for the default model, for the cost report. */
-const PRICING_USD_PER_MTOK: Record<string, { input: number; output: number }> = {
-  'claude-opus-5': { input: 5, output: 25 },
-  'claude-sonnet-5': { input: 3, output: 15 },
-  'claude-haiku-4-5': { input: 1, output: 5 },
-};
 
 type IncidentRow = {
   id: string;
@@ -82,15 +74,11 @@ function chunk<T>(items: T[], size: number): T[][] {
 
 async function main(): Promise<void> {
   const force = process.argv.includes('--force');
-  const model = process.env['ANTHROPIC_MODEL'] ?? 'claude-opus-5';
 
-  if (!process.env['ANTHROPIC_API_KEY']) {
-    throw new Error(
-      'ANTHROPIC_API_KEY is not set.\n' +
-        '  Add it to .env, then re-run. The committed cache at data/ai/incident_findings.json\n' +
-        '  means the rest of the application runs without one.',
-    );
-  }
+  // Resolved before any database work: a missing or ambiguous key should fail
+  // in the first second, not after loading the register.
+  const provider = resolveProvider(providerFlag(process.argv));
+  const model = provider.model;
 
   const incidents = await loadIncidents();
   if (incidents.length === 0) {
@@ -98,23 +86,30 @@ async function main(): Promise<void> {
   }
 
   const existing = force ? null : readCache();
-  const alreadyDone = new Set(
-    existing?.promptVersion === PROMPT_VERSION
-      ? existing.findings.map((f) => f.incident_id)
-      : [],
-  );
+
+  // Reusable only if it was produced by this same prompt *and* this same model.
+  // Every finding is stamped with the model that produced it, so mixing two
+  // vendors' output under one label would make the audit trail a lie — and a
+  // finding the other model would not have made is not a finding this run can
+  // claim. Switching provider therefore reclassifies from scratch.
+  const reusable =
+    existing?.promptVersion === PROMPT_VERSION && existing.model === model
+      ? existing.findings
+      : [];
+  const alreadyDone = new Set(reusable.map((f) => f.incident_id));
 
   const todo = incidents.filter((i) => !alreadyDone.has(i.id));
 
   console.log(`\n${incidents.length} incidents, ${todo.length} to classify`);
-  console.log(`model: ${model}, prompt: ${PROMPT_VERSION}\n`);
+  console.log(
+    `provider: ${provider.name}, model: ${model}, prompt: ${PROMPT_VERSION}\n`,
+  );
 
   if (todo.length === 0) {
     console.log('Nothing to do. Use --force to reclassify everything.\n');
     return;
   }
 
-  const client = new Anthropic();
   const byId = new Map<string, SourceIncident>(
     incidents.map((i) => [i.id, i]),
   );
@@ -129,25 +124,19 @@ async function main(): Promise<void> {
       `  batch ${index + 1} (${batch.length} incidents) ... `,
     );
 
-    const messages: Anthropic.MessageParam[] = [
+    const turns: ChatTurn[] = [
       { role: 'user', content: buildUserMessage(batch) },
     ];
 
-    const response = await client.messages.parse({
-      model,
-      max_tokens: 16000,
-      system: SYSTEM_PROMPT,
-      messages,
-      output_config: { format: zodOutputFormat(BatchResponseSchema) },
-    });
+    const response = await provider.classify(SYSTEM_PROMPT, turns);
 
-    inputTokens += response.usage.input_tokens;
-    outputTokens += response.usage.output_tokens;
+    inputTokens += response.inputTokens;
+    outputTokens += response.outputTokens;
 
-    const parsed = response.parsed_output;
+    const parsed = response.parsed;
     if (!parsed) {
       throw new Error(
-        `Batch ${index + 1} returned no parseable output (stop_reason: ${response.stop_reason}).`,
+        `Batch ${index + 1} returned no parseable output (stop reason: ${response.stopReason ?? 'unknown'}).`,
       );
     }
 
@@ -163,27 +152,21 @@ async function main(): Promise<void> {
     if (notVerbatim.length > 0) {
       process.stdout.write(`${notVerbatim.length} ungrounded, retrying ... `);
 
-      messages.push({ role: 'assistant', content: JSON.stringify(parsed) });
-      messages.push({
+      turns.push({ role: 'assistant', content: JSON.stringify(parsed) });
+      turns.push({
         role: 'user',
         content: buildRegroundingMessage(
           notVerbatim.map((r) => ({ incidentId: r.incidentId, quote: r.quote })),
         ),
       });
 
-      const retry = await client.messages.parse({
-        model,
-        max_tokens: 16000,
-        system: SYSTEM_PROMPT,
-        messages,
-        output_config: { format: zodOutputFormat(BatchResponseSchema) },
-      });
+      const retry = await provider.classify(SYSTEM_PROMPT, turns);
 
-      inputTokens += retry.usage.input_tokens;
-      outputTokens += retry.usage.output_tokens;
+      inputTokens += retry.inputTokens;
+      outputTokens += retry.outputTokens;
 
-      if (retry.parsed_output) {
-        const retried = verifyFindings(retry.parsed_output.findings, byId);
+      if (retry.parsed) {
+        const retried = verifyFindings(retry.parsed.findings, byId);
         accepted.push(...retried.accepted);
         rejected.push(...retried.rejected);
       }
@@ -200,10 +183,7 @@ async function main(): Promise<void> {
   const psychosocial = accepted.filter((f) => f.is_psychosocial);
   const mismatches = accepted.filter((f) => f.severityMismatch);
 
-  const rates = PRICING_USD_PER_MTOK[model] ?? { input: 5, output: 25 };
-  const estimatedCostUsd =
-    (inputTokens / 1_000_000) * rates.input +
-    (outputTokens / 1_000_000) * rates.output;
+  const estimatedCostUsd = provider.estimateCostUsd(inputTokens, outputTokens);
 
   console.log(`\n  accepted:              ${accepted.length}`);
   console.log(`  rejected by the gate:  ${rejected.length}`);
@@ -211,7 +191,10 @@ async function main(): Promise<void> {
   console.log(`  psychosocial hazards:  ${psychosocial.length}`);
   console.log(`  severity mismatches:   ${mismatches.length}`);
   console.log(
-    `  tokens: ${inputTokens} in / ${outputTokens} out  (~$${estimatedCostUsd.toFixed(3)})`,
+    `  tokens: ${inputTokens} in / ${outputTokens} out  ` +
+      (estimatedCostUsd === null
+        ? '(no rate on file for this model)'
+        : `(~$${estimatedCostUsd.toFixed(3)})`),
   );
 
   if (rejected.length > 0) {
@@ -224,16 +207,15 @@ async function main(): Promise<void> {
     console.log(`\n  no finding for: ${missing.join(', ')}`);
   }
 
-  // Merge with anything already cached under this prompt version.
-  const previous =
-    existing?.promptVersion === PROMPT_VERSION ? existing.findings : [];
+  // Merge with anything already cached under this prompt version and model.
   const merged = [
-    ...previous.filter((p) => !accepted.some((a) => a.incident_id === p.incident_id)),
+    ...reusable.filter((p) => !accepted.some((a) => a.incident_id === p.incident_id)),
     ...accepted,
   ];
 
   const cache: FindingsCache = {
     generatedAt: new Date().toISOString(),
+    provider: provider.name,
     model,
     promptVersion: PROMPT_VERSION,
     incidentsClassified: merged.length,

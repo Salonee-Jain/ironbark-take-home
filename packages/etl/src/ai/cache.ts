@@ -21,13 +21,17 @@ export const CACHE_PATH = join(repoRoot, 'data', 'ai', 'incident_findings.json')
 
 export type FindingsCache = {
   generatedAt: string;
+  /** Which vendor produced these findings. Recorded alongside the model so the
+   *  artefact says who was asked, not just what was answered. */
+  provider: string;
   model: string;
   promptVersion: string;
   incidentsClassified: number;
   usage: {
     inputTokens: number;
     outputTokens: number;
-    estimatedCostUsd: number;
+    /** null when no published rate is on file for the model. */
+    estimatedCostUsd: number | null;
   };
   /** Kept in the artefact: what the gate threw away is part of the record. */
   rejected: Rejection[];

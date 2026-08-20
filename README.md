@@ -33,7 +33,27 @@ Postgres binds to host port **5433**, not 5432, so it will not collide with a lo
 install. Change `POSTGRES_PORT` in `.env` if that port is taken too. `npm run db:down`
 stops the container; `npm run db:reset` also destroys the volume.
 
-Requires Node 22+ and Docker. An `ANTHROPIC_API_KEY` is optional — the AI findings are
-committed, so the app runs without one.
+Requires Node 22+ and Docker. An API key is optional — the AI findings are committed, so
+the app runs without one.
+
+## Re-running the AI classification
+
+Classification works against either Anthropic or OpenAI. Set one key in `.env` and the
+provider is inferred:
+
+```bash
+npm run ai:classify                        # anything not already cached
+npm run ai:classify -- --force             # reclassify everything
+npm run ai:classify -- --provider=openai   # pick the vendor for this run
+```
+
+With both keys present, the run stops and asks which to use — set `AI_PROVIDER` or pass
+`--provider=`. Findings are stamped with the model that produced them, so switching vendor
+reclassifies from scratch rather than merging two models' output under one label. Model
+choice is `ANTHROPIC_MODEL` / `OPENAI_MODEL`; see `.env.example` for the rest.
+
+The grounding gate, the prompt, and the batching are identical either way — a provider
+only makes the wire call, so nothing about which findings are acceptable can change with
+the vendor.
 
 > Work in progress. The full run-and-verify instructions land with the write-up in step 14.
