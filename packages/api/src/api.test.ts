@@ -52,13 +52,21 @@ async function databaseReady(): Promise<boolean> {
 }
 
 const ready = await databaseReady();
-const withDb = () => (ready ? it : it.skip);
 
 if (!ready) {
+  // See the note in packages/db/src/emissions.test.ts: CI sets REQUIRE_DB so a
+  // skipped suite cannot pass for a green one.
+  if (process.env['REQUIRE_DB'] === '1') {
+    throw new Error(
+      'REQUIRE_DB=1 but no migrated database was found. Run the migrations first.',
+    );
+  }
   console.warn(
     '[api.test] no migrated database — skipping. Run: npm run db:up && npm run db:migrate',
   );
 }
+
+const withDb = () => (ready ? it : it.skip);
 
 /** Multipart body built by hand: `inject` takes a buffer, not a FormData. */
 function multipartBody(

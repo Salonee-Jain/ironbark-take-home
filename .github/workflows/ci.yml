@@ -1,0 +1,85 @@
+name: CI
+
+# Every push and every PR. The pipeline is fast enough (well under two minutes)
+# that there is no reason to be selective about when it runs.
+on:
+  push:
+    branches: ['**']
+  pull_request:
+
+# A second push to the same branch cancels the first: the older run's result is
+# about code nobody is looking at any more.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: typecheck, test, build
+    runs-on: ubuntu-latest
+
+    # A real Postgres rather than a mock. Two of the test suites exist
+    # specifically to check SQL — the emissions arithmetic lives in views — and
+    # they are worth nothing against a substitute.
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: ironbark
+          POSTGRES_PASSWORD: ironbark
+          POSTGRES_DB: ironbark
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ironbark -d ironbark"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      # The service container publishes on the standard port; only local
+      # development moves it to 5433 to avoid a host Postgres.
+      DATABASE_URL: postgresql://ironbark:ironbark@localhost:5432/ironbark
+      # Not a secret — this database is destroyed with the runner. Set only so
+      # the API boots the same way it does in production rather than falling
+      # back to its ephemeral development path.
+      JWT_SECRET: ci-only-secret-not-used-anywhere-else-0123456789
+      # Turns a skipped database suite into a failure. Skipping is a local
+      # convenience; in CI it would be a green run that tested nothing.
+      REQUIRE_DB: '1'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Migrate
+        run: npm run db:migrate
+
+      # Before the tests, not after: the emissions suite checks the SQL views
+      # against the real export, so the demo company has to be loaded for it to
+      # have anything to check. It also serves as the smoke test — the ETL runs
+      # end to end against the actual client data on every commit, and a parser
+      # or rule that breaks on real input fails here rather than in a demo.
+      - name: Load the real export
+        run: npm run etl
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      # The write-up quotes counts from the rule engine. Generated, so it cannot
+      # drift — and checked, so nobody can hand-edit it back into drifting.
+      - name: Write-up is in sync with the rule engine
+        run: npm run writeup -- --check
+
+      - name: Test
+        run: npm test
+
+      - name: Build
+        run: npm run build

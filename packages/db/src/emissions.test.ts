@@ -67,13 +67,23 @@ async function loadedCompanyId(): Promise<number | null> {
 }
 
 const companyId = await loadedCompanyId();
-const withDb = () => (companyId === null ? it.skip : it);
 
 if (companyId === null) {
+  // A suite that skips is a suite that stops protecting anything, and the
+  // skip is invisible in a green run. CI sets REQUIRE_DB so that the
+  // convenience of skipping locally cannot quietly become permanent.
+  if (process.env['REQUIRE_DB'] === '1') {
+    throw new Error(
+      'REQUIRE_DB=1 but no loaded database was found. Expected the demo company ' +
+        `"${COMPANY_SLUG}" with fuel deliveries — run the migrations and the ETL first.`,
+    );
+  }
   console.warn(
     '[emissions.test] no loaded database — skipping. Run: npm run db:up && npm run db:migrate && npm run etl',
   );
 }
+
+const withDb = () => (companyId === null ? it.skip : it);
 
 afterAll(async () => {
   await closePool();
