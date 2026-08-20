@@ -4,7 +4,8 @@ export default defineConfig({
   test: {
     include: ['packages/**/*.{test,spec}.ts'],
     exclude: ['**/node_modules/**', '**/dist/**'],
-    // Scaffold only for now; the suites arrive with the normalisers in step 3.
-    passWithNoTests: true,
+    // The suites exist now, so an empty run means they failed to be collected —
+    // which should fail CI rather than pass quietly.
+    passWithNoTests: false,
   },
 });
