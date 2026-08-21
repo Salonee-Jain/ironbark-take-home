@@ -85,7 +85,7 @@ export async function countByFile(
  *
  * The column name is interpolated rather than parameterised, which SQL does not
  * allow for identifiers. It is safe because the parameter is a two-value union
- * the compiler checks, and the function is not exported — the only callers are
+ * the compiler checks, and the function is not exported, the only callers are
  * the two below. Anything reaching this from a request body would need a new
  * caller, which is a change a reviewer would see.
  */
@@ -176,7 +176,7 @@ export async function findIssues(
  * A left join from `data_quality_rules`, not from the issues, because a rule
  * that fired zero times is a result: it is evidence the check ran and found
  * nothing. The company predicate has to sit in the join condition rather than
- * a where clause — in a where clause it would discard the null rows the left
+ * a where clause, in a where clause it would discard the null rows the left
  * join exists to produce, turning the catalogue back into a list of hits.
  */
 export async function findAllRules(

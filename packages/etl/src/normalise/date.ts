@@ -2,29 +2,16 @@ import type { DatePrecision } from '@ironbark/shared';
 import { err, ok, type Result } from './result.js';
 
 /**
- * Date normalisation.
+ * Date normalisation. Three formats share one column: ISO, day-first slash, and
+ * month-year.
  *
- * The source files carry three formats in the same column:
+ * Day-first is established from the data rather than assumed from the locale:
+ * across all 142 slash-formatted dates the second component never exceeds 12
+ * while the first reaches 30. A month-first misreading would move about 40% of
+ * deliveries into the wrong month without erroring.
  *
- *   2025-12-19   ISO                       21 rows
- *   21/05/2026   day-first, Australian    100 rows
- *   Oct-25       month and year only       29 rows
- *
- * Two things worth stating, because both are places this could silently go
- * wrong and produce plausible but false numbers.
- *
- * **Day-first is established from the data, not assumed from the locale.**
- * Across all 142 slash-formatted dates in the export, the second component
- * never exceeds 12 while the first reaches 30. Under a month-first reading the
- * first component is the month and could not exceed 12. Day-first is the only
- * consistent interpretation. (A month-first misreading would silently move
- * ~40% of deliveries into the wrong month and quietly corrupt every monthly
- * emissions figure — it would not error, it would just be wrong.)
- *
- * **Dates are strings, never `Date` objects.** `new Date('2025-12-19')` is UTC
- * midnight; render it in Brisbane and you get the 19th, render it in Los
- * Angeles and you get the 18th. Since the only thing we do with these is bucket
- * them into months, an ISO string has no timezone to get wrong.
+ * Dates stay strings, never Date objects. The only thing done with them is
+ * bucketing into months, and an ISO string has no timezone to get wrong.
  */
 
 export type DateFormat = 'iso' | 'day-first-slash' | 'month-year';
@@ -99,7 +86,7 @@ export function normaliseDate(raw: string): Result<NormalisedDate> {
     });
   }
 
-  // 21/05/2026  (day first — see the note above)
+  // 21/05/2026  (day first, see the note above)
   const slash = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(value);
   if (slash) {
     const [day, month, year] = [

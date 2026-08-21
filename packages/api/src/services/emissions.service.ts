@@ -6,7 +6,7 @@ import { camelCaseRows } from '../utils/case.js';
  *
  * Thin by design. The arithmetic is in SQL views so that the API and a psql
  * session cannot disagree, which leaves this layer responsible for shaping,
- * defaults, and the judgements that are not the database's to make — such as
+ * defaults, and the judgements that are not the database's to make, such as
  * what to say when a figure the client expects cannot honestly be produced.
  */
 

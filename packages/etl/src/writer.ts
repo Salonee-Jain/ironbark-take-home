@@ -32,20 +32,10 @@ export type LoadPayload = {
 /**
  * Tables the ETL replaces on every load, in dependency order.
  *
- * `truncate` was right when the database held one mine. It is now exactly
- * wrong: it would empty every tenant's tables to reload one company's upload.
- * These are deleted `where company_id = $1` instead, which is slower and
- * correct, and the ordering matters because the deletes are no longer a single
- * cascading statement.
- *
- * Reference tables seeded by migration 0001 are absent on purpose: they are
- * schema, not load output. `emission_factors` and `data_quality_rules` are
- * absent too but for a different reason — they are global taxonomy shared by
- * every tenant, so they are upserted below rather than owned by any one load.
- *
- * `ai_incident_findings` is not listed because it cascades from `incidents`.
- * That is intended: findings cite incident IDs and cannot outlive a reload of
- * the register. They are re-inserted from the committed cache afterwards.
+ * Deleted `where company_id = $1` rather than truncated, which would empty every
+ * tenant's tables to reload one upload. Reference and global taxonomy tables are
+ * absent on purpose. `ai_incident_findings` cascades from `incidents` and is
+ * re-inserted from the committed cache afterwards.
  */
 const COMPANY_OWNED_TABLES = [
   'data_quality_issues',
@@ -57,17 +47,10 @@ const COMPANY_OWNED_TABLES = [
 ];
 
 /**
- * Map site-area names to ids for one company.
- *
- * Two tiers, and the precedence matters. The six seeded areas are global
- * (`company_id is null`) and shared by every tenant. Anything else is a value
- * that appeared in *this* company's export and is created against this company,
- * so one client's pit names never leak into another client's breakdowns.
- *
- * A company-specific row wins over a global one of the same name. That case
- * should not arise — the loader only creates a row when the name is not already
- * known — but if it ever does, the tenant's own record is the more specific
- * answer.
+ * Site-area names to ids, in two tiers. The six seeded areas are global; any
+ * other name came from this company's export and is created against it, so one
+ * client's pit names never leak into another client's breakdowns. A
+ * company-specific row wins over a global one of the same name.
  */
 async function resolveSiteAreas(
   client: PoolClient,

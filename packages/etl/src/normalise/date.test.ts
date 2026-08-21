@@ -58,7 +58,7 @@ describe('normaliseDate', () => {
 
   it('distinguishes a month-first date from a broken one', () => {
     // 05/21/2026 is not malformed, it is written the other way round, and the
-    // remediation differs — so the message has to say which.
+    // remediation differs, so the message has to say which.
     const result = normaliseDate('05/21/2026');
     expect(result.ok).toBe(false);
     expect(!result.ok && result.error).toContain('month-first');

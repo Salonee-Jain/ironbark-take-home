@@ -55,17 +55,10 @@ export async function getTrends(
 }
 
 /**
- * One incident with its full audit trail.
- *
- * The grounding check is the reason this endpoint exists in this shape. The
- * database trigger already refuses to store a finding whose evidence quote is
- * not verbatim in the incident, and it is re-verified here on every read.
- *
- * That is deliberate belt-and-braces: the storage guarantee protects the data,
- * and this one puts the evidence in front of whoever is reading, so a
- * compliance user is shown that a claim is traceable rather than asked to take
- * it on trust. If `evidenceVerified` is ever false, something is badly wrong
- * and the UI should say so loudly rather than render the finding as fact.
+ * One incident with its full audit trail. The database trigger already refuses
+ * to store a finding whose quote is not verbatim in the incident, and it is
+ * re-verified here on every read: the storage guarantee protects the data, this
+ * puts the evidence in front of whoever is reading.
  */
 export async function getIncidentDetail(companyId: number, id: string) {
   const incident = await repository.findIncidentById(companyId, id);

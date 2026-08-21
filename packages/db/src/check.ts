@@ -1,7 +1,7 @@
 /**
  * Connection smoke test.
  *
- * Proves the host can reach Postgres with the credentials in .env — which is
+ * Proves the host can reach Postgres with the credentials in .env, which is
  * where the setup actually fails (port already taken, container still starting,
  * .env never copied). Run after `npm run db:up`.
  */
@@ -17,7 +17,7 @@ async function main(): Promise<void> {
   const row = rows[0];
   if (!row) throw new Error('connected, but the server returned no rows');
 
-  // "PostgreSQL 16.10 on aarch64-unknown-linux-musl, compiled by ..." — the
+  // "PostgreSQL 16.10 on aarch64-unknown-linux-musl, compiled by ...", the
   // first two words are the useful part.
   const version = row.version.split(',')[0] ?? row.version;
 

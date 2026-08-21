@@ -4,23 +4,15 @@
 -- reviewer can read the arithmetic, and so the API cannot quietly disagree with
 -- what a `psql` session reports.
 
--- ---------------------------------------------------------------------------
--- Monthly emissions by scope
+-- Monthly emissions by scope.
 --
---   Scope 1 = litres burned      x factor  (diesel 2.70, petrol 2.31 kg CO2e/L)
---   Scope 2 = kWh from the grid  x factor  (0.71 kg CO2e/kWh)
+--   Scope 1 = litres burned x factor (diesel 2.70, petrol 2.31 kg CO2e/L)
+--   Scope 2 = kWh from the grid x factor (0.71 kg CO2e/kWh)
 --
--- Two deliberate behaviours:
---
---   * The credit note carries a negative quantity, so `sum` nets it off. A
---     credit means the fuel was never delivered; leaving it in would overstate
---     Scope 1 by 12,500 L.
---
---   * `has_quality_flags` marks any month whose figure draws on at least one
---     record we had to correct or flag. A chart that cannot tell you which of
---     its bars rest on shaky data is worse than no chart, because it looks
---     equally confident everywhere.
--- ---------------------------------------------------------------------------
+-- The credit note carries a negative quantity, so `sum` nets it off: leaving it
+-- in would overstate Scope 1 by 12,500 L. `has_quality_flags` marks any month
+-- drawing on a record we corrected or flagged, because a chart that cannot say
+-- which bars rest on shaky data looks equally confident everywhere.
 create view v_monthly_emissions as
 with fuel as (
     select

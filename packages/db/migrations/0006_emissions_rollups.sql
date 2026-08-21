@@ -52,16 +52,9 @@ select
     has_imprecise_dates
 from by_month;
 
--- ---------------------------------------------------------------------------
--- Scope 1 by site area.
---
--- Scope 1 only, and deliberately so. Fuel deliveries carry a site area; the
--- electricity meters are described by function ('CHPP Conveyors', 'Admin &
--- Camp') and are never mapped to the site-area vocabulary anywhere in the
--- export. Inventing that mapping would produce a confident site breakdown of
--- Scope 2 built on our guesswork, so the view reports what the data supports
--- and no more.
--- ---------------------------------------------------------------------------
+-- Scope 1 by site area, and Scope 1 only. Fuel deliveries carry a site area; the
+-- meters are described by function and never mapped to the site-area vocabulary
+-- anywhere in the export, so a Scope 2 breakdown would be our guesswork.
 create view v_scope1_by_site_area as
 select
     date_trunc('month', f.delivery_date)::date        as month,
@@ -76,15 +69,10 @@ join emission_factors ef on ef.factor_key = f.factor_key
 left join site_areas sa on sa.id = f.site_area_id
 group by 1, 2, 3, 4;
 
--- ---------------------------------------------------------------------------
--- Australian financial year.
---
--- FY2026 runs 1 July 2025 to 30 June 2026, and this export covers it in full —
--- the only complete financial year in the data, and the unit an NGER report is
--- actually filed against. The partial FY2025 (January to June 2025) is included
--- but marked incomplete, because presenting a six-month year next to a
--- twelve-month one without saying so invites exactly the wrong comparison.
--- ---------------------------------------------------------------------------
+-- Australian financial year. FY2026 runs July 2025 to June 2026 and is the only
+-- complete year in this export, which is the unit an NGER report is filed
+-- against. The partial FY2025 is included but marked incomplete, because a
+-- six-month year shown next to a twelve-month one invites the wrong comparison.
 create view v_financial_year_emissions as
 select
     case

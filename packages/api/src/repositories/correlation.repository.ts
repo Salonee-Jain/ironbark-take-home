@@ -3,18 +3,14 @@ import { getPool } from '@ironbark/db';
 /**
  * Data access for the cross-dataset correlation view.
  *
- * The queries here are deliberately dumb: each one fetches one dataset's monthly
- * shape and nothing else. The *joining* — the part that turns three unrelated
- * series into a causal account — happens in the service, in TypeScript, where it
+ * The queries are deliberately dumb: each fetches one dataset's monthly shape
+ * and nothing else. The joining happens in the service, in TypeScript, where it
  * can be read and argued with.
  *
- * That is the opposite of the choice made for emissions, where the arithmetic
- * lives in SQL. The reason for the difference: an emissions total is a sum, and
- * a sum belongs next to the data. A claim that one event caused another is an
- * interpretation, and an interpretation should be somewhere a reviewer can see
- * every assumption that went into it.
- *
- * **Tenancy.** `companyId` is `$1` of every statement here, as everywhere else.
+ * That is the opposite of the emissions choice, where the arithmetic lives in
+ * SQL. A total is a sum and belongs next to the data; a claim that one event
+ * caused another is an interpretation, and should be where a reviewer can see
+ * every assumption behind it.
  */
 
 export type MonthlyElectricityRow = {
@@ -74,8 +70,8 @@ export type MeterHistoryRow = {
  * Every meter's full history.
  *
  * Needed because each meter has to be judged against its *own* norm. The site's
- * meters differ by more than an order of magnitude — a haul-road lighting circuit
- * and a processing plant are not comparable — so a single site-wide percentage
+ * meters differ by more than an order of magnitude, a haul-road lighting circuit
+ * and a processing plant are not comparable, so a single site-wide percentage
  * would let a small meter's collapse hide inside a large meter's noise.
  */
 export async function findMeterHistory(
@@ -93,7 +89,7 @@ export async function findMeterHistory(
   return rows;
 }
 
-/** Every meter's reading for one month — the evidence that a fall is site-wide. */
+/** Every meter's reading for one month, the evidence that a fall is site-wide. */
 export async function findMetersForMonth(
   companyId: number,
   month: string,
@@ -115,7 +111,7 @@ export async function findMetersForMonth(
  * Fuel volume per month.
  *
  * Credit notes are included, because they are part of what was actually
- * delivered — netting them off here is the same arithmetic the emissions views
+ * delivered, netting them off here is the same arithmetic the emissions views
  * do, and excluding them would make this series disagree with the chart above it.
  */
 export async function findMonthlyFuel(

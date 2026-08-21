@@ -63,7 +63,7 @@ export async function listRules(companyId: number) {
 
   return {
     rules: camelCaseRows(rules),
-    // A rule that fired zero times is not noise — it is evidence the check ran
+    // A rule that fired zero times is not noise, it is evidence the check ran
     // and found nothing, which is exactly what a reviewer wants to know.
     triggered: rules.filter((rule) => rule.issue_count > 0).length,
     silent: rules.filter((rule) => rule.issue_count === 0).length,

@@ -1,7 +1,7 @@
 /**
  * The compliance-summary layer, as the API consumes it.
  *
- * The API owns the facts — they are SQL over one tenant's data — and this
+ * The API owns the facts, they are SQL over one tenant's data, and this
  * package owns everything that decides whether a generated sentence is allowed
  * to be shown. Keeping the gate on this side of the boundary is the same
  * decision as the provider seam: the guarantee must not be something a caller

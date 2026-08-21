@@ -2,29 +2,21 @@ import { indexFacts, type ReportFact } from './facts.js';
 import type { Claim, ReportSection } from './schema.js';
 
 /**
- * The citation gate.
- *
- * Step 7's grounding gate asks one question of a finding: does its quote appear
- * verbatim in the record it cites. A narrative summary has no source text to
- * quote, so this gate asks the equivalent question of a sentence:
+ * The citation gate. The grounding gate asks whether a finding's quote appears
+ * verbatim in the record it cites. A narrative has no source text to quote, so
+ * this asks the equivalent of a sentence:
  *
  *   1. does it cite anything at all;
  *   2. does every citation name a fact that exists in the pack;
  *   3. does it name a record without citing it;
  *   4. is every number it states present in one of the facts it cites.
  *
- * Rule 4 is the one that earns its keep. A model that cites correctly and then
- * misstates the figure produces the most dangerous output this project can
- * emit — a wrong number wearing a citation, which reads as *more* trustworthy
- * than an uncited one. Checking the arithmetic of the prose against the pack is
- * what stops that, and it is why the fact pack exists as a closed set rather
- * than the model being handed a database connection.
+ * Rule 4 is the one that earns its keep: a correct citation attached to a wrong
+ * figure reads as more trustworthy than an uncited one.
  *
- * What this gate does NOT prove, and the write-up says so plainly: that the
- * claim's *interpretation* is sound. "Scope 1 rose 47.6%" and "Scope 1 rose
- * 47.6%, which is excellent news" both pass. Mechanical traceability is what a
- * machine can certify; judgement stays with the reader, which is why every
- * claim ships with its citations visible rather than footnoted away.
+ * What it does not prove is that the interpretation is sound. Mechanical
+ * traceability is what a machine can certify; judgement stays with the reader,
+ * which is why every claim ships with its citations visible.
  */
 
 export type RejectionReason =
@@ -53,12 +45,9 @@ export type VerificationResult = {
 };
 
 /**
- * Years are exempt from the number check.
- *
- * A bare `2026` in "the March 2026 outage" is a date, not a quantity, and the
- * period bounds are themselves facts — so requiring a citation for the year
- * would reject correct sentences without closing any hole a fabricated *figure*
- * could come through. Nothing outside this window is exempt.
+ * Years are exempt from the number check. A bare 2026 in "the March 2026 outage"
+ * is a date, not a quantity, and requiring a citation for it would reject
+ * correct sentences without closing any hole a fabricated figure could use.
  */
 const FIRST_PLAUSIBLE_YEAR = 1900;
 const LAST_PLAUSIBLE_YEAR = 2100;
@@ -82,19 +71,16 @@ export function extractNumbers(text: string): WrittenNumber[] {
   }));
 }
 
-/** Digits written after the decimal point — the precision the author claimed. */
+/** Digits written after the decimal point, the precision the author claimed. */
 function decimalsOf(token: string): number {
   return token.split('.')[1]?.length ?? 0;
 }
 
 /**
- * Does a written number state this fact's value?
- *
- * Rounding is allowed, to exactly the precision written and no further: 47 may
- * stand for 47.3, and 1219185 for 1219184.94, because that is a fair rendering
- * of the same figure. 1.2 may not stand for 1234567 — a change of unit or
+ * Does a written number state this fact's value? Rounding is allowed to exactly
+ * the precision written and no further: 47 may stand for 47.3. A change of
  * magnitude is a new number, and the pack carries both kg and tonnes so the
- * model never has to convert one into the other.
+ * model never has to convert.
  */
 export function numberMatches(written: WrittenNumber, actual: number): boolean {
   if (written.value === actual) return true;

@@ -82,7 +82,7 @@ const byType = computed(() =>
 
     <ChartFrame
       title="Incidents by type"
-      subtitle="Type codes come from the register; the labels are inferred — the source ships no code table."
+      subtitle="Type codes come from the register; the labels are inferred, because the source ships no code table."
     >
       <BarList :items="byType" color="var(--series-4)" />
       <template #table>

@@ -4,19 +4,13 @@ import { fileURLToPath } from 'node:url';
 import type { GeneratedReport } from './generate.js';
 
 /**
- * The committed compliance summary.
+ * The committed compliance summary, for the same reason as the findings cache: a
+ * reviewer should not have to buy inference to see the feature work.
  *
- * Same reasoning as the findings cache: the brief says they will actually run
- * this, and a reviewer should not have to buy inference to see the feature
- * work. The difference is what makes it safe to ship — the file records the
- * `factDigest` it was generated against, and the API serves it only to a
- * dataset whose facts reproduce that digest exactly. A company that uploads its
- * own export gets no report until it generates one, rather than being shown
- * someone else's narrative over its own numbers.
- *
- * It is also the artefact that makes the AI layer reviewable as a diff. Re-run
- * the generator against a changed prompt and the pull request shows precisely
- * which claims moved.
+ * What makes it safe to ship is the `factDigest` recorded in the file. The API
+ * serves it only to a dataset whose facts reproduce that digest, so a company
+ * that uploads its own export gets no report rather than someone else's
+ * narrative over its numbers.
  */
 
 const repoRoot = resolve(

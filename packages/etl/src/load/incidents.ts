@@ -17,11 +17,8 @@ export type IncidentRecord = {
 };
 
 /**
- * Fixed infrastructure named in incident descriptions.
- *
- * Kept narrow on purpose. A description mentioning "haul road" is compatible
- * with almost any location, so it is not here; a crusher is a specific piece of
- * plant that cannot be located "at" a vehicle fleet.
+ * Fixed infrastructure named in incident descriptions. Narrow on purpose: "haul
+ * road" is compatible with almost any location, a crusher is not.
  */
 const FIXED_INFRASTRUCTURE = [
   'crusher',

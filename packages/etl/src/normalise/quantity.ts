@@ -1,16 +1,10 @@
 import { err, ok, type Result } from './result.js';
 
 /**
- * Fuel quantity normalisation.
- *
- * The unit column uses four spellings for two units: `L`, `litres`, `Litres`
- * (106 + 19 + 14 rows) and `kL` (11 rows). Everything is converted to litres.
- *
- * The kL rows are the trap in this file. They carry quantities like `84.03`
- * against costs like `$152,369.51`. Loaded as litres they look like a small
- * delivery at an absurd price, and they under-report Scope 1 by roughly
- * 750,000 litres across the period — an error that produces a *lower* emissions
- * figure, which is exactly the direction nobody questions.
+ * Fuel quantity normalisation. The unit column uses four spellings for two
+ * units, all converted to litres. The 11 kL rows are the trap: loaded as litres
+ * they under-report Scope 1 by roughly 750,000 litres, an error in the direction
+ * nobody questions.
  */
 
 const LITRES_PER_UNIT: Record<string, number> = {
@@ -64,17 +58,13 @@ export function normaliseQuantity(
 }
 
 /**
- * Plausible delivered price per litre.
+ * Plausible delivered price per litre. Observed $1.72 to $1.94; the band is
+ * wider so ordinary price movement is not noise, while still catching a missed
+ * kL conversion, which implies about $1,800/L.
  *
- * Observed in this export: diesel $1.720-$1.937/L across 132 rows, petrol a
- * flat $1.850/L across 17. The band below is deliberately wider than that, so
- * ordinary price movement does not raise noise, while still catching the
- * failure this is actually here to catch: a missed kL conversion implies about
- * $1,800/L, and a stray factor of ten implies $18 or $0.18.
- *
- * Note the direction of the check. It validates the *relationship* between two
- * independently recorded columns, so it catches a unit error even when both the
- * quantity and the cost look individually reasonable.
+ * It validates the relationship between two independently recorded columns, so
+ * it catches a unit error even when the quantity and the cost each look
+ * reasonable alone.
  */
 export const PLAUSIBLE_PRICE_BAND_AUD_PER_LITRE = { min: 1.0, max: 3.0 };
 

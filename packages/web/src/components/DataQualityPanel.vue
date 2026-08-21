@@ -3,12 +3,9 @@ import { computed, ref } from 'vue';
 import type { DataQualityIssue, DataQualityOverview } from '../types';
 
 /**
- * The data-quality report.
- *
- * Organised by *decision* rather than by severity, because "what did you do
- * about it" is the question a compliance reviewer actually has. Each rule can be
- * opened to show the justification the pipeline recorded for that decision, and
- * every issue points at the physical line in the source file.
+ * The data-quality report, organised by decision rather than severity: "what did
+ * you do about it" is the question a compliance reviewer actually has. Every
+ * issue points at the physical line in the source file.
  */
 const props = defineProps<{
   overview: DataQualityOverview;
@@ -50,7 +47,7 @@ function toggle(ruleId: string): void {
           {{ overview.totals.totalIssues }} findings from
           {{ overview.totals.rulesTriggered }} rules across
           {{ overview.byFile.length }} source files, {{ errorCount }} of them
-          error-severity. Nothing was discarded silently — rejected rows are recorded
+          error-severity. Nothing was discarded silently: rejected rows are recorded
           here with the reason.
         </p>
       </div>
@@ -213,7 +210,7 @@ h3 {
   text-align: right;
 }
 
-/* Severity tints the count only, and the pill beside it carries the word — so
+/* Severity tints the count only, and the pill beside it carries the word, so
    the state is never conveyed by colour alone. */
 .count.error {
   color: var(--status-critical);

@@ -11,19 +11,15 @@ import { UploadError, type UploadedFile } from '../services/uploads.service.js';
  * The only write endpoint in the API, and the reason the request-handling this
  * codebase previously had no use for now exists: multipart parsing, a role for
  * each part, an owner-only guard, and an audit row. This is exactly the case
- * `server.ts` said would justify reintroducing real request handling — so it
+ * `server.ts` said would justify reintroducing real request handling, so it
  * lives here, in the route, rather than being smeared across the service.
  */
 
 /**
- * Which part name maps to which of the five canonical files.
- *
- * Accepting the *field name* rather than sniffing the uploaded filename is
- * deliberate. A client's export is rarely named `fuel_deliveries.csv` — it is
- * `Fuel Deliveries FY26 (final) v3.csv` — and guessing a file's role from its
- * name is exactly the kind of silent inference that puts electricity readings
- * through the fuel loader. The form says what each file is; the server does not
- * guess.
+ * Which part name maps to which of the five canonical files. Accepting the field
+ * name rather than sniffing the filename is deliberate: a client's export is
+ * rarely named `fuel_deliveries.csv`, and guessing a file's role from its name
+ * is how electricity readings end up in the fuel loader.
  */
 const FIELD_TO_ROLE: Record<string, IngestFileName> = {
   emissionFactors: 'emission_factors.csv',
@@ -42,7 +38,7 @@ const FIELD_TO_ROLE: Record<string, IngestFileName> = {
  */
 function assertLooksLikeText(filename: string, buffer: Buffer): void {
   // A NUL byte in the first kilobyte is the reliable tell for a binary
-  // container — xlsx (a zip), a PDF, a database export.
+  // container, xlsx (a zip), a PDF, a database export.
   if (buffer.subarray(0, 1024).includes(0)) {
     throw new UploadError(
       `${filename} does not look like a CSV file.`,

@@ -1,22 +1,15 @@
 -- AI compliance summaries, and the citation guarantee at the storage layer.
 --
--- A generated narrative is a different kind of artefact from a classified
--- incident, and the difference decides the shape of this table. A finding cites
--- one record and can be re-verified against it any time, because the record is
--- still there. A summary cites *figures* — a total, a share, a count — and those
--- move every time the data is reloaded. Storing only the prose would leave a
--- paragraph of numbers with nothing to check them against a month later.
+-- A finding cites one record and can be re-verified against it any time. A
+-- summary cites figures, and those move every time the data is reloaded, so
+-- storing the prose alone would leave a paragraph of numbers with nothing to
+-- check them against a month later.
 --
--- So the fact pack is stored with the report. `facts` is the closed set the
--- model was given, `fact_digest` fingerprints it, and together they make three
--- things possible that prose alone cannot:
---
---   1. the trigger below can enforce that every claim cites something real;
---   2. the API can re-verify every claim on read, against the facts as they are
---      *now*, and tell the reader which sentences no longer hold;
---   3. the committed artefact in data/ai/ can be offered to a dataset only when
---      that dataset reproduces the same digest, so one company can never be
---      shown another company's narrative over its own numbers.
+-- The fact pack is therefore stored with the report. `facts` is the closed set
+-- the model was given and `fact_digest` fingerprints it, which is what lets the
+-- trigger below check every citation, lets the API re-verify claims on read
+-- against current figures, and lets the committed artefact be offered only to a
+-- dataset that reproduces the same digest.
 
 create table ai_compliance_reports (
     id                   bigint generated always as identity primary key,
@@ -64,20 +57,11 @@ create table ai_compliance_reports (
 create index ai_compliance_reports_company_idx
     on ai_compliance_reports (company_id, generated_at desc);
 
--- ---------------------------------------------------------------------------
--- Citation enforcement
---
--- The application gate in packages/etl/src/ai/report/citations.ts does the real
--- work — it also checks the arithmetic of the prose, which SQL has no business
--- attempting. This trigger enforces the part that is a storage invariant: no
--- claim may be stored without a citation, and no citation may name a fact that
--- is not in the pack stored alongside it.
---
--- The same belt-and-braces as the grounding trigger on ai_incident_findings,
--- and for the same reason: "every AI claim is traceable" is a promise this
--- product makes, and a promise the database is willing to enforce survives a
--- future script, a manual insert, or a refactor that forgets the validator.
--- ---------------------------------------------------------------------------
+-- Citation enforcement. The application gate does the real work, including
+-- checking the arithmetic of the prose, which SQL has no business attempting.
+-- This enforces the part that is a storage invariant: no claim without a
+-- citation, and no citation naming a fact absent from the pack stored with it.
+-- The same belt and braces as the grounding trigger on ai_incident_findings.
 create function assert_report_claims_are_cited() returns trigger
 language plpgsql
 as $$

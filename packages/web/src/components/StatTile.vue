@@ -1,10 +1,7 @@
 <script setup lang="ts">
 /**
- * Stat tile: label, value, optional unit and note.
- *
- * Proportional figures on the value — `tabular-nums` gives every digit the
- * width of a zero, which makes a number look loose at display sizes. Tabular
- * is for columns that align vertically, not for a headline.
+ * Stat tile: label, value, optional unit and note. Proportional figures rather
+ * than tabular-nums, which is for columns that align vertically.
  */
 defineProps<{
   label: string;

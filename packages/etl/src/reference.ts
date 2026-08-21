@@ -1,9 +1,7 @@
 /**
- * Reference vocabularies, mirroring what migration 0001 seeds.
- *
- * Held here as well as in the database so the loaders can recognise an
- * unexpected value without a round trip, and so the rule that detects one can
- * be unit-tested with no database at all.
+ * Reference vocabularies, mirroring what migration 0001 seeds, so a loader can
+ * recognise an unexpected value without a round trip and the rule that detects
+ * one stays unit-testable.
  */
 
 export const KNOWN_SITE_AREAS = new Set([

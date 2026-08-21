@@ -1,19 +1,12 @@
 import type { Finding } from './schema.js';
 
 /**
- * The grounding gate.
+ * The grounding gate. Nothing reaches the database without passing through here;
+ * the database enforces the same rule with a trigger and the API re-checks it on
+ * read.
  *
- * Nothing reaches the database without passing through here. The database
- * enforces the same rule with a trigger, and the API re-checks it on read —
- * three layers for one requirement, because the brief is explicit that a
- * hallucinated finding is worse than no finding, and this is the layer that can
- * still do something about it (reject, report, and ask again).
- *
- * Note what is *not* asked of the model: whether the severity it assessed
- * disagrees with the recorded one. That is a comparison of two numbers, so it
- * is computed here. Asking a model to also report the consequence of its own
- * answer invites an incoherent pair — an assessment of 3 against a recorded 1,
- * with mismatch reported as false.
+ * Severity mismatch is computed here rather than asked of the model. Asking a
+ * model to report the consequence of its own answer invites an incoherent pair.
  */
 
 export type SourceIncident = {

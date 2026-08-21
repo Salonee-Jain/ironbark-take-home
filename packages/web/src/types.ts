@@ -131,12 +131,9 @@ export type UploadResult = {
 };
 
 /**
- * The cited compliance summary, from `/api/reports/summary`.
- *
- * A claim is the unit that carries citations, because it is the unit the
- * citation gate can accept or discard on its own. `facts` is the closed set the
- * model was allowed to draw on — the UI renders each citation from it, so a
- * reader can see the figure behind a sentence without leaving the page.
+ * The cited compliance summary. A claim is the unit that carries citations,
+ * because it is the unit the gate can accept or discard on its own. `facts` is
+ * the closed set the model was allowed to draw on.
  */
 export type ReportFact = {
   id: string;
@@ -191,11 +188,9 @@ export type ComplianceSummary =
     };
 
 /**
- * Cross-dataset correlation, from `GET /api/analysis/outage`.
- *
- * A discriminated union on `detected`, because "no outage in this data" is a
- * normal answer — a newly signed-up company has none — and modelling it as a
- * nullable object invites rendering an empty panel instead of saying so.
+ * Cross-dataset correlation. A union on `detected`, because "no outage in this
+ * data" is a normal answer and a nullable object invites rendering an empty
+ * panel instead of saying so.
  */
 export type OutageChainLink = {
   step: number;

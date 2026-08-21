@@ -4,14 +4,9 @@ import { monthLabel, monthLabelLong } from '../format';
 import type { MonthlyEmissions } from '../types';
 
 /**
- * Scope 1 share of the monthly footprint.
- *
- * A separate chart rather than a second axis on the columns. A dual-axis plot
- * aligns two scales arbitrarily and invents a correlation the data does not
- * contain; two charts sharing an x-axis say the same thing honestly.
- *
- * One series, so no legend box — the title names what is plotted. Direct labels
- * are used sparingly: the outage point only.
+ * Scope 1 share, as its own chart rather than a second axis on the columns. A
+ * dual-axis plot aligns two scales arbitrarily and invents a correlation the
+ * data does not contain.
  */
 const props = defineProps<{
   months: MonthlyEmissions[];

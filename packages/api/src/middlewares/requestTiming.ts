@@ -4,7 +4,7 @@ import type { FastifyInstance } from 'fastify';
  * Adds `x-response-time` and warns on slow requests.
  *
  * Modest, but it is the thing that tells you a dashboard feels sluggish because
- * of one unindexed query rather than the network — and it costs one hook.
+ * of one unindexed query rather than the network, and it costs one hook.
  */
 const SLOW_REQUEST_MS = 500;
 

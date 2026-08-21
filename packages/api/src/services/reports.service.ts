@@ -23,24 +23,15 @@ import { getOutageAnalysis } from './correlation.service.js';
 /**
  * The AI compliance summary.
  *
- * The design constraint, restated because it drives everything below: an AI
- * claim in a compliance document has to be traceable to a source record. For a
- * classified incident that is a verbatim quote. For a narrative it has to be a
- * citation, and a citation is only worth anything if the thing cited exists
- * before the model is asked — otherwise "cite your sources" is a request the
- * model satisfies by inventing plausible ones.
+ * An AI claim in a compliance document has to be traceable, and for a narrative
+ * that means a citation. A citation is only worth something if the thing cited
+ * existed before the model was asked, so this service does the arithmetic first:
+ * it assembles a fact pack from the same repositories the dashboard uses, hands
+ * the model that closed set, and lets the gate discard anything the pack does
+ * not support.
  *
- * So this service does the arithmetic first. It assembles a **fact pack** from
- * the same views and repositories the dashboard uses, hands the model that
- * closed set, and lets the gate in `@ironbark/etl/ai/report` throw away
- * anything the pack does not support — including a claim that cites correctly
- * and then misstates the figure, which is the failure a citation alone would
- * hide.
- *
- * Reading a report re-runs the same gate against *current* facts, so a stored
- * summary cannot outlive the numbers it describes: reload the data and the
- * claims that no longer hold are dropped on the way out, and the response says
- * how many.
+ * Reading a report re-runs the same gate against current facts, so a stored
+ * summary cannot outlive the numbers it describes.
  */
 
 export class ReportUnavailableError extends AppError {
@@ -74,8 +65,8 @@ function monthName(month: string): string {
  * Accumulates the pack.
  *
  * Records are merged rather than appended because one incident can be reached
- * from three directions — psychosocial classification, severity mismatch, and
- * the outage narrative — and a pack containing `INC-2026-134` three times would
+ * from three directions, psychosocial classification, severity mismatch, and
+ * the outage narrative, and a pack containing `INC-2026-134` three times would
  * give the same id three different meanings. A citation must resolve to exactly
  * one fact or it resolves to nothing.
  */
@@ -144,7 +135,7 @@ export type FactPackResult = {
  * repositories the dashboard reads.
  *
  * Composed rather than re-queried on purpose. If this built its own totals, a
- * divergence between the summary and the chart beside it would be possible —
+ * divergence between the summary and the chart beside it would be possible, 
  * and of the two, the prose is the one a reader would believe.
  */
 export async function buildFactPack(
@@ -194,7 +185,7 @@ export async function buildFactPack(
   }
 
   // Sorted here rather than trusted from SQL. Several of these queries order by
-  // a count, and Postgres is free to return tied rows in any order — which would
+  // a count, and Postgres is free to return tied rows in any order, which would
   // make the fact digest differ between two databases holding identical data,
   // and the committed summary would stop matching the dataset it was written
   // for. The pack is part of a prompt; its order has to be ours, not the
@@ -670,15 +661,10 @@ function toClaims(sections: ReportSectionOutput[]): Claim[] {
 }
 
 /**
- * Re-verification on read.
- *
- * The stored report passed the gate when it was written, against the facts of
- * that moment. Data gets reloaded, corrections change, a rule starts firing —
- * and a sentence that was true of the old pack can be false of the new one
- * while still looking perfectly well cited. Checking again here costs
- * microseconds and is the difference between "this was verified once" and "this
- * is verified now", which is the claim a compliance reader is actually relying
- * on.
+ * Re-verification on read. A sentence that was true of the old fact pack can be
+ * false of the new one while still looking perfectly well cited, so checking
+ * again here is the difference between "this was verified once" and "this is
+ * verified now".
  */
 function present(
   report: PresentableReport,
@@ -705,7 +691,7 @@ function present(
     verification: {
       claimsChecked: claims.length,
       claimsShown: accepted.length,
-      /** Rejected when the report was generated — the gate's original work. */
+      /** Rejected when the report was generated, the gate's original work. */
       claimsRejectedAtGeneration: report.claimsRejected,
       /** Rejected now, against current data. Non-zero means the data moved. */
       claimsDroppedOnRead: rejected.length,
@@ -724,6 +710,26 @@ function present(
 export type SummaryResponse =
   | ReturnType<typeof present>
   | { available: false; reason: string; hint: string };
+
+/**
+ * Proportion of a cached summary's claims that must still verify for it to be
+ * offered to this dataset.
+ *
+ * High enough that another company's data cannot reach it: their figures differ
+ * under the same fact ids, so almost every claim fails. Low enough that a
+ * corrected fact does not discard a document that is otherwise still true.
+ */
+const CACHE_MATCH_THRESHOLD = 0.7;
+
+function stillDescribes(
+  sections: ReportSectionOutput[],
+  facts: ReportFact[],
+): boolean {
+  const claims = toClaims(sections);
+  if (claims.length === 0) return false;
+  const { accepted } = verifyClaims(claims, facts);
+  return accepted.length / claims.length >= CACHE_MATCH_THRESHOLD;
+}
 
 export async function getSummary(companyId: number): Promise<SummaryResponse> {
   const companyName = (await repository.findCompanyName(companyId)) ?? 'this company';
@@ -761,12 +767,16 @@ export async function getSummary(companyId: number): Promise<SummaryResponse> {
     );
   }
 
-  // The committed artefact, offered only to a dataset that reproduces exactly
-  // the facts it was written from. That is what lets a reviewer with no API key
-  // see the feature on the demo export, while a company that uploaded its own
-  // data gets nothing rather than somebody else's narrative over its numbers.
+  // The committed artefact, which is what lets a reviewer with no API key see
+  // the feature working on the demo export.
+  //
+  // Offered on a match of substance rather than of fingerprint: correcting one
+  // unrelated fact should drop the claims that moved, not a document whose other
+  // twenty claims are still exactly true. The threshold is what keeps it safe for
+  // another tenant, whose different values under the same fact ids fail the gate
+  // wholesale.
   const cached = readReportCache();
-  if (cached && cached.factDigest === digest) {
+  if (cached && stillDescribes(cached.sections, facts)) {
     return present(
       {
         period: { from: cached.period.from, to: cached.period.to },

@@ -2,12 +2,9 @@
 import { ref } from 'vue';
 
 /**
- * The shell every chart sits in: title, subtitle, legend, and a chart/table
- * toggle.
- *
- * The table view is not a nicety. A tooltip must never be the only way to read
- * a value, and colour must never be the only encoding — the table is the
- * WCAG-clean twin that guarantees both.
+ * Title, subtitle, legend and a chart/table toggle. The table is the accessible
+ * twin: a tooltip must never be the only way to read a value, and colour must
+ * never be the only encoding.
  */
 defineProps<{
   title: string;

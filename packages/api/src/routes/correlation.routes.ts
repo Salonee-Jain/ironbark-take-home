@@ -3,15 +3,11 @@ import * as service from '../services/correlation.service.js';
 import { companyIdOf } from '../middlewares/authenticate.js';
 
 /**
- * Cross-dataset correlation.
- *
- * One endpoint, because it answers one question: is there a month where the
- * three datasets tell a single story, and what is it?
+ * Cross-dataset correlation. One endpoint, because it answers one question.
  *
  * It returns `detected: false` with a reason rather than a 404 when there is no
- * such month. A newly signed-up company with no data is not an error, and an
- * endpoint that 404s on "nothing unusual happened" forces the client to treat a
- * normal result as a failure.
+ * such month: an endpoint that 404s on "nothing unusual happened" forces the
+ * client to treat a normal result as a failure.
  */
 export async function correlationRoutes(app: FastifyInstance): Promise<void> {
   app.get(

@@ -3,18 +3,11 @@ import type { ZodType } from 'zod';
 /**
  * The seam between the AI tasks and whichever model vendor is configured.
  *
- * A task owns everything that makes its output trustworthy — the prompt, the
- * batching, the verification gate, the corrective round. A provider owns only
- * the wire call. That split is the point: swapping vendors must not be able to
- * change what counts as an acceptable finding, because the gate is the
- * compliance guarantee and it lives on this side of the seam.
- *
- * There are two tasks now — incident classification and the cited compliance
- * summary — and the seam is generic in the output type rather than naming
- * either. A provider that knew about `BatchResponse`, as this one did while
- * classification was the only caller, would have to be edited once per task,
- * and each edit is a chance to let one task's schema reach the other's vendor
- * call.
+ * A task owns everything that makes its output trustworthy: the prompt, the
+ * batching, the verification gate. A provider owns only the wire call, so
+ * swapping vendors cannot change what counts as acceptable output. Generic in
+ * the output type, because there are two tasks now and a provider that knew
+ * about one task's schema would have to be edited for the other.
  */
 
 export const PROVIDER_NAMES = ['anthropic', 'openai'] as const;
@@ -22,17 +15,15 @@ export type ProviderName = (typeof PROVIDER_NAMES)[number];
 
 /**
  * A conversation turn. Deliberately narrower than either vendor's message
- * type — plain text, two roles — because that is all the classifier needs and
+ * type, plain text, two roles, because that is all the classifier needs and
  * anything wider would leak vendor shape into the caller.
  */
 export type ChatTurn = { role: 'user' | 'assistant'; content: string };
 
 /**
- * The shape a task requires back.
- *
- * `name` is only a label for the vendor's structured-output slot; the schema is
- * what does the work. Both vendors enforce it server-side, so a malformed
- * response is impossible rather than merely unlikely.
+ * The shape a task requires back. `name` is only a label for the vendor's
+ * structured-output slot; the schema is what does the work, enforced
+ * server-side by both vendors.
  */
 export type OutputFormat<T> = { name: string; schema: ZodType<T> };
 

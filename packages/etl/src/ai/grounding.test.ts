@@ -3,13 +3,9 @@ import { findMissing, verifyFindings, type SourceIncident } from './grounding.js
 import type { Finding } from './schema.js';
 
 /**
- * The grounding gate is the single most important guard in the project: it is
- * what makes "an AI wrote this" acceptable in a compliance report. A finding
- * nobody can trace back to a source record must not reach the database, and no
- * amount of plausibility substitutes for the quote being actually present.
- *
- * These tests are written adversarially — each one is a way a model could
- * produce something convincing and wrong.
+ * The grounding gate is what makes "an AI wrote this" acceptable in a compliance
+ * report. These tests are adversarial: each one is a way a model could produce
+ * something convincing and wrong.
  */
 
 const DESCRIPTION =
@@ -103,7 +99,7 @@ describe('verifyFindings — what it rejects', () => {
   });
 
   it('rejects a quote lifted from a different incident', () => {
-    // Cross-contamination inside a batch — a real failure mode when eight
+    // Cross-contamination inside a batch, a real failure mode when eight
     // incidents share one context window.
     const { rejected } = verifyFindings(
       [finding({ evidence_quote: 'required surgery and lost time' })],
@@ -163,7 +159,7 @@ describe('verifyFindings — what it rejects', () => {
   });
 
   it('records the rejected quote, so what was discarded stays visible', () => {
-    // Rejections are logged, not silently dropped — the artefact has to show
+    // Rejections are logged, not silently dropped, the artefact has to show
     // what the gate threw away.
     const { rejected } = verifyFindings(
       [finding({ evidence_quote: 'invented text' })],

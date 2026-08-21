@@ -4,13 +4,9 @@ import { monthLabelLong } from '../format';
 import type { ComplianceSummary, ReportFact } from '../types';
 
 /**
- * The AI-written period summary.
- *
- * Every sentence here was checked against a closed set of pre-computed facts
- * before it was stored, and checked again when this response was built. The
- * citations are rendered as chips rather than footnotes because the point is
- * that a reader can open the evidence behind any figure in one click — a
- * citation nobody can follow is decoration.
+ * The AI-written period summary. Citations render as chips so a reader can open
+ * the evidence behind any figure in one click; a citation nobody can follow is
+ * decoration.
  */
 const props = defineProps<{
   summary: ComplianceSummary;
@@ -65,7 +61,7 @@ const cost = computed(() => {
     <header>
       <span class="tag">AI-generated · every claim cited</span>
       <h2 v-if="report">
-        Compliance summary — {{ monthLabelLong(report.period.from) }} to
+        Compliance summary, {{ monthLabelLong(report.period.from) }} to
         {{ monthLabelLong(report.period.to) }}
       </h2>
       <h2 v-else>Compliance summary</h2>
@@ -167,7 +163,7 @@ const cost = computed(() => {
             <li v-for="(rejection, index) in report.rejectedAtGeneration" :key="index">
               <p class="rejected-text">“{{ rejection.text }}”</p>
               <p class="rejected-reason">
-                <code>{{ rejection.reason }}</code> — {{ rejection.detail }}
+                <code>{{ rejection.reason }}</code>: {{ rejection.detail }}
               </p>
             </li>
           </ul>

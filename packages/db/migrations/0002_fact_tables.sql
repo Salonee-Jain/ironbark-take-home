@@ -3,7 +3,7 @@
 -- Design rule applied throughout: **every normalised value keeps the raw string
 -- it came from**. `quantity_l` sits next to `original_quantity` and
 -- `original_unit`; `delivery_date` next to `original_date`. This costs a little
--- storage and buys the thing the brief actually asks for — any number in the UI
+-- storage and buys the thing the brief actually asks for, any number in the UI
 -- can be walked back to the exact cell in the client's export. Corrections that
 -- erase their own evidence are not auditable.
 
@@ -70,7 +70,7 @@ create table electricity_readings (
 
     consumption_kwh        numeric(14, 2) not null check (consumption_kwh >= 0),
 
-    -- MTR-07 drops by a factor of 1000 from 2025-10 onward — readings taken in
+    -- MTR-07 drops by a factor of 1000 from 2025-10 onward, readings taken in
     -- MWh but labelled kWh. Those nine rows are multiplied back up, and the
     -- factor applied is recorded per row so the correction is visible rather
     -- than assumed. Left uncorrected it under-reports Scope 2 for half the
@@ -111,7 +111,7 @@ create table incidents (
     type_code          text references incident_types (code),
 
     -- The register mixes two severity scales: Low/Medium and 1/2/3. Both are
-    -- kept — `severity` for arithmetic, `severity_raw` because a reviewer
+    -- kept, `severity` for arithmetic, `severity_raw` because a reviewer
     -- needs to see that the client was recording two different things.
     severity           smallint check (severity between 1 and 3),
     severity_raw       text not null,

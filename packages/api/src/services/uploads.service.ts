@@ -11,18 +11,13 @@ import * as repository from '../repositories/uploads.repository.js';
 import { camelCaseRows } from '../utils/case.js';
 
 /**
- * Dataset replacement.
+ * Dataset replacement: the same pipeline `npm run etl` runs, driven by a
+ * multipart request instead of a directory, so a cleaning rule cannot apply on
+ * the command line and quietly not apply on upload.
  *
- * The same pipeline `npm run etl` runs, driven by a multipart request instead
- * of a directory. That is the point of routing both through `@ironbark/etl`:
- * a cleaning rule cannot apply on the command line and quietly not apply on
- * upload, and the data-quality report the user sees after uploading is produced
- * by the code that actually did the cleaning.
- *
- * Semantics are **replace**, not merge. An upload deletes the company's rows
- * and reloads from the files provided, in one transaction, which is why all
- * five files are required and why the response leads with what the pipeline
- * found rather than with "success".
+ * Semantics are replace, not merge. An upload deletes the company's rows and
+ * reloads from the files provided, in one transaction, which is why all five
+ * files are required.
  */
 
 export class UploadError extends AppError {
@@ -45,8 +40,8 @@ export type UploadActor = { userId: number; email: string };
  * Ingest, and record the attempt either way.
  *
  * A failed upload writes a `data_loads` row too, outside the rolled-back
- * transaction. Without that, the most interesting event in the system — someone
- * tried to load a file and the pipeline refused it — would leave no trace at
+ * transaction. Without that, the most interesting event in the system, someone
+ * tried to load a file and the pipeline refused it, would leave no trace at
  * all, and the user's report of "it didn't work" would be unanswerable.
  */
 export async function replaceDataset(
@@ -113,7 +108,7 @@ export async function replaceDataset(
       throw new UploadError(error.message, `Expected: ${INGEST_FILES.join(', ')}.`);
     }
 
-    // Everything reaching here is a rejection by the pipeline or the schema —
+    // Everything reaching here is a rejection by the pipeline or the schema, 
     // a ragged CSV, a missing column, a constraint the cleaned data violated.
     // The message names the file and line, which is exactly what the person
     // holding the file needs, so it is passed through rather than generalised.

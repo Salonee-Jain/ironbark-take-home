@@ -5,22 +5,14 @@ import type {
 } from '@ironbark/shared';
 
 /**
- * The data-quality rule catalogue.
+ * The data-quality rule catalogue: what counts as a problem, what we did about
+ * it, and why we felt entitled to do that. The ETL upserts this into
+ * `data_quality_rules` so the API can serve a rationale next to every corrected
+ * number.
  *
- * This is the single source of truth for *what* counts as a problem, *what we
- * did about it*, and — the part that matters for a compliance product — *why we
- * felt entitled to do that*. The ETL upserts this into `data_quality_rules` so
- * the API can serve a rationale next to every corrected number, without a user
- * having to read the repo.
- *
- * Reporting granularity is a deliberate choice per rule:
- *
- *   row-level   — anything that changes a number, or that a human needs to
- *                 look at record by record.
- *   file-level  — systematic formatting, and rules that fail for essentially
- *                 every row. Emitting those per row buries the rare, genuine
- *                 defects under hundreds of identical lines, which is how a
- *                 data-quality report becomes something nobody reads.
+ * Granularity is chosen per rule. Row-level for anything that changes a number.
+ * File-level for systematic formatting, where hundreds of identical findings
+ * would bury the rare ones.
  */
 
 export type RuleId =

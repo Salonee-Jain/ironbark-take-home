@@ -6,11 +6,9 @@ import type {
 import { RULES, type RuleId } from './rules.js';
 
 /**
- * Collects data-quality findings during a load.
- *
- * Severity and action default to the rule's declared policy, so a loader states
- * only what it observed and cannot accidentally downgrade a finding at the call
- * site. Either can still be overridden where a rule genuinely has two modes.
+ * Collects data-quality findings during a load. Severity and action default to
+ * the rule's declared policy, so a loader states only what it observed and
+ * cannot downgrade a finding at the call site.
  */
 
 export type DataQualityIssue = {

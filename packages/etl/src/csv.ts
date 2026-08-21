@@ -2,22 +2,10 @@ import { readFileSync } from 'node:fs';
 import { parse } from 'csv-parse/sync';
 
 /**
- * CSV reading.
- *
- * Uses `csv-parse` rather than a hand-rolled splitter: quoted fields containing
- * commas are everywhere in this data (`"$182,946.64"`, incident descriptions),
- * and a parser is not the interesting part of this project.
- *
- * Two things this layer adds on top.
- *
- * **Header trimming.** `fuel_deliveries.csv` ships headers as `Invoice No`,
- * ` Delivery Date`, `Fuel Type `, ` Unit` — inconsistent padding that would make
- * every column lookup a guessing game. Headers are trimmed, and the originals
- * are kept so the loader can report the padding as a (cosmetic) finding.
- *
- * **Physical line numbers.** Every data-quality issue points at the line a
- * reviewer can actually open in the file, so `source_row_number` is the line
- * number, not an array index.
+ * CSV reading. Two things this layer adds over `csv-parse`: headers are trimmed,
+ * because the fuel file pads them inconsistently, with the originals kept so the
+ * padding can be reported; and `source_row_number` is the physical line a
+ * reviewer can open, not an array index.
  */
 
 export type CsvRow = {
@@ -37,13 +25,9 @@ export type CsvFile = {
 };
 
 /**
- * Parse CSV text.
- *
- * Split out from `readCsv` when uploads arrived: a file posted to the API is a
- * buffer in memory, and the alternative was writing it to a temp path purely so
- * the parser could read it back. `label` is only ever used in error messages —
- * a filesystem path from the CLI, an uploaded filename from the API — so the
- * error still names something the reader can go and open.
+ * Parse CSV text. Split out from `readCsv` for uploads, which arrive as a buffer
+ * rather than a path. `label` only appears in error messages, so an error still
+ * names something the reader can open.
  */
 export function parseCsv(text: string, label: string): CsvFile {
   const firstLine = text.split('\n', 1)[0] ?? '';
@@ -52,7 +36,7 @@ export function parseCsv(text: string, label: string): CsvFile {
 
   const records = parse(text, {
     // An array, not a function. Given a function, csv-parse consumes the first
-    // line it reads as the header — which, combined with `from_line: 2`, eats
+    // line it reads as the header, which, combined with `from_line: 2`, eats
     // the first data row of every file. Passing the names directly means no
     // line is treated as a header and `from_line` means what it says.
     columns: headers,

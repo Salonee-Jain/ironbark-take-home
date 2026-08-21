@@ -1,20 +1,14 @@
 -- Rebuild the analytical views with company_id carried through.
 --
 -- The views are where tenancy is most likely to be got wrong, because a missing
--- `company_id` here does not fail — it silently sums every tenant's fuel into
--- one number and reports it with total confidence. Three things had to change,
--- and each is a distinct kind of mistake:
+-- company_id does not fail: it silently sums every tenant's fuel into one
+-- number. Three changes, each a distinct mistake.
 --
---   1. Every `group by` gains company_id, so aggregates stay within a tenant.
+--   1. Every `group by` gains company_id.
 --   2. Every join gains company_id, including the data-quality lateral, which
---      previously matched on (source_file, source_row_number) — a pair that is
---      only unique inside one company's upload. Left alone it would have
---      attributed one tenant's corrections to another tenant's rows.
---   3. The month-on-month window gains `partition by company_id`, so the first
---      month of one company no longer computes a change against the last month
---      of whoever happened to sort before it.
---
--- Views are dropped newest-dependency-first and recreated in dependency order.
+--      matched on (source_file, source_row_number) alone: a pair that is only
+--      unique inside one company's upload.
+--   3. The month-on-month window gains `partition by company_id`.
 
 drop view if exists v_financial_year_emissions;
 drop view if exists v_monthly_emissions_totals;
@@ -23,16 +17,9 @@ drop view if exists v_monthly_emissions_by_scope;
 drop view if exists v_monthly_emissions;
 drop view if exists v_incident_monthly;
 
--- ---------------------------------------------------------------------------
--- Monthly emissions per activity
---
---   Scope 1 = litres burned      x factor  (diesel 2.70, petrol 2.31 kg CO2e/L)
---   Scope 2 = kWh from the grid  x factor  (0.71 kg CO2e/kWh)
---
--- Emission factors stay global reference data, so the join carries no
--- company_id: every tenant converts a litre of diesel the same way, and letting
--- them disagree would make two companies' reports incomparable for no reason.
--- ---------------------------------------------------------------------------
+-- Monthly emissions per activity. Emission factors stay global reference data,
+-- so the join carries no company_id: every tenant converts a litre of diesel the
+-- same way, and letting them disagree would make two reports incomparable.
 create view v_monthly_emissions as
 with fuel as (
     select
@@ -165,21 +152,13 @@ from by_month
 -- repeated wrongly.
 window w as (partition by company_id order by month);
 
--- ---------------------------------------------------------------------------
--- Scope 1 by site area.
+-- Scope 1 by site area, and Scope 1 only: the meters are described by function
+-- and never mapped to the site-area vocabulary, so a Scope 2 breakdown would be
+-- our guesswork.
 --
--- Scope 1 only, and deliberately so. Fuel deliveries carry a site area; the
--- electricity meters are described by function ('CHPP Conveyors', 'Admin &
--- Camp') and are never mapped to the site-area vocabulary anywhere in the
--- export. Inventing that mapping would produce a confident site breakdown of
--- Scope 2 built on our guesswork, so the view reports what the data supports
--- and no more.
---
--- The site_areas join is unscoped on purpose: `site_area_id` already points at
--- either a global row or a row belonging to this company, and the loader is
--- what enforces that. Adding a company predicate here would drop the six shared
--- taxonomy rows and leave every site area reading '(unrecorded)'.
--- ---------------------------------------------------------------------------
+-- The site_areas join is unscoped on purpose. `site_area_id` already points at a
+-- global row or one belonging to this company, and a company predicate here
+-- would drop the six shared rows and leave every area reading '(unrecorded)'.
 create view v_scope1_by_site_area as
 select
     f.company_id                                      as company_id,
@@ -195,15 +174,9 @@ join emission_factors ef on ef.factor_key = f.factor_key
 left join site_areas sa on sa.id = f.site_area_id
 group by 1, 2, 3, 4, 5;
 
--- ---------------------------------------------------------------------------
--- Australian financial year.
---
--- FY2026 runs 1 July 2025 to 30 June 2026, and the demo export covers it in
--- full — the only complete financial year in that data, and the unit an NGER
--- report is actually filed against. A partial year is included but marked
--- incomplete, because presenting a six-month year next to a twelve-month one
--- without saying so invites exactly the wrong comparison.
--- ---------------------------------------------------------------------------
+-- Australian financial year. FY2026 is the only complete year in the demo
+-- export, and a partial year is marked incomplete rather than shown alongside a
+-- full one without comment.
 create view v_financial_year_emissions as
 select
     company_id,

@@ -1,13 +1,9 @@
 import type { CsvFile } from '../csv.js';
 
 /**
- * Emission factors.
- *
- * The brief says this file is clean and to use it as given, so there are no
- * rules here — only the mapping from the file's prose activity names to stable
- * keys. Joining fact tables on a string like
- * 'Diesel combustion (stationary & transport)' works right up until someone
- * edits the wording.
+ * Emission factors. The brief says this file is clean, so there are no rules
+ * here, only the mapping from prose activity names to stable keys: joining on
+ * 'Diesel combustion (stationary & transport)' works until someone edits it.
  */
 
 export const FACTOR_KEY_BY_ACTIVITY: Record<string, string> = {
@@ -40,7 +36,7 @@ export function loadEmissionFactors(file: CsvFile): EmissionFactorRecord[] {
     const factorKey = FACTOR_KEY_BY_ACTIVITY[activity];
 
     if (!factorKey) {
-      // Not a data-quality issue — a code change. A new factor in this file
+      // Not a data-quality issue, a code change. A new factor in this file
       // needs a deliberate decision about what it applies to.
       throw new Error(
         `Unmapped emission factor activity: "${activity}" (line ${row.lineNumber}). ` +

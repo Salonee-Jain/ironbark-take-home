@@ -4,17 +4,13 @@ import { errorResponse, monthParam } from '../schemas/common.schema.js';
 import * as service from '../services/emissions.service.js';
 
 /**
- * Route definitions: path, schema, and the service call behind it.
+ * Route definitions: path, schema, and the service call behind it. The schema
+ * lives here because it is the public contract, and the handler stays a single
+ * expression mapping the request onto a service argument.
  *
- * The schema lives here because it is the public contract — what Fastify
- * validates and what /docs publishes. The handler stays a single expression
- * that maps the request onto a service argument; anything more than that
- * belongs in the service.
- *
- * Every route in this group carries `onRequest: app.authenticate` and reads its
- * company from the verified session, never from the request. There is
- * deliberately no `?company=` parameter anywhere in this API: a tenant
- * identifier a caller can type is a tenant identifier a caller can change.
+ * Every route carries `onRequest: app.authenticate` and reads its company from
+ * the verified session. There is deliberately no `?company=` parameter anywhere
+ * in this API.
  */
 
 type MonthRangeQuery = { from?: string; to?: string };

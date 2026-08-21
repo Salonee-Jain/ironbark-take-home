@@ -4,15 +4,9 @@
 -- problems", so nothing is dropped without leaving a row here explaining what
 -- was wrong, what we did, and what the value used to be.
 
--- ---------------------------------------------------------------------------
--- Rule catalogue
---
--- The rules themselves live in TypeScript (single source of truth) and are
--- upserted here by the ETL. They are stored rather than kept purely in code so
--- the API can serve the *justification* alongside each issue: a compliance user
--- looking at a corrected number needs to know why we felt entitled to correct
--- it, without reading the repo.
--- ---------------------------------------------------------------------------
+-- Rule catalogue. The rules live in TypeScript and are upserted here by the ETL,
+-- so the API can serve the justification alongside each issue: a user looking at
+-- a corrected number needs to know why we felt entitled to correct it.
 create table data_quality_rules (
     rule_id          text primary key,
     title            text not null,
@@ -23,18 +17,11 @@ create table data_quality_rules (
     rationale        text not null
 );
 
--- ---------------------------------------------------------------------------
--- Issues
---
--- One row per problem per source record.
---
--- `action` carries the editorial decision:
---   fixed    — corrected in flight, original value in `original_value`
---   flagged  — loaded as-is, surfaced for a human. Used wherever a correction
---              would be a guess. We do not invent data.
---   rejected — excluded from the fact tables, but recorded here in full, so
---              "rejected" never means "vanished".
--- ---------------------------------------------------------------------------
+-- Issues: one row per problem per source record. `action` carries the editorial
+-- decision. fixed means corrected in flight with the original kept. flagged means
+-- loaded as-is and surfaced for a human, wherever a correction would be a guess.
+-- rejected means excluded from the fact tables but recorded here in full, so
+-- "rejected" never means "vanished".
 create table data_quality_issues (
     id                bigint generated always as identity primary key,
     rule_id           text not null references data_quality_rules (rule_id),
@@ -72,7 +59,7 @@ create index data_quality_issues_action_idx   on data_quality_issues (action);
 -- AI incident findings
 --
 -- Every finding must quote the span of the source description it was drawn
--- from. That quote is not decoration — see the trigger below.
+-- from. That quote is not decoration, see the trigger below.
 -- ---------------------------------------------------------------------------
 create table ai_incident_findings (
     id                  bigint generated always as identity primary key,
@@ -101,18 +88,10 @@ create index ai_incident_findings_incident_idx     on ai_incident_findings (inci
 create index ai_incident_findings_psychosocial_idx on ai_incident_findings (is_psychosocial) where is_psychosocial;
 create index ai_incident_findings_mismatch_idx     on ai_incident_findings (severity_mismatch) where severity_mismatch;
 
--- ---------------------------------------------------------------------------
--- Grounding enforcement
---
--- The application validates that every `evidence_quote` appears verbatim in the
--- incident it cites, and the API refuses ungrounded findings. This trigger says
--- the same thing at the storage layer, because "hallucinated findings are worse
--- than no findings" is a claim the database should be willing to enforce on its
--- own — including against a future script, a manual insert, or a careless fix
--- that bypasses the validator.
---
--- A CHECK constraint cannot reference another table, so it has to be a trigger.
--- ---------------------------------------------------------------------------
+-- Grounding enforcement. The application validates that every evidence_quote
+-- appears verbatim in the incident it cites, and this says the same thing at the
+-- storage layer, against a future script or a careless manual insert. A CHECK
+-- constraint cannot reference another table, so it has to be a trigger.
 create function assert_ai_finding_is_grounded() returns trigger
 language plpgsql
 as $$

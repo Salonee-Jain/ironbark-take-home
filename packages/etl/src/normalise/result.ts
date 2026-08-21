@@ -1,10 +1,7 @@
 /**
- * A tiny result type.
- *
- * Normalisers return this rather than throwing, because a bad cell is expected
- * input for this pipeline, not an exceptional condition. The loader needs to
- * record the failure as a data-quality issue and carry on with the next row —
- * exceptions would make "keep going, but remember" the awkward path.
+ * A tiny result type. Normalisers return it rather than throwing, because a bad
+ * cell is expected input here: the loader records the failure as a data-quality
+ * issue and carries on with the next row.
  */
 export type Result<T> = { ok: true; value: T } | { ok: false; error: string };
 

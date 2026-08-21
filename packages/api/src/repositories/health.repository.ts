@@ -1,15 +1,13 @@
 import { getPool } from '@ironbark/db';
 
 /**
- * Health checks the dependency, not just the process. A server that answers
- * while its database is unreachable is worse than a red health check, because
- * nothing downstream notices.
+ * Health checks the dependency, not just the process: a server that answers
+ * while its database is unreachable is worse than a red check.
  *
- * Deliberately not scoped to a company: `/health` is the one endpoint that
- * answers without a session, so there is no company to scope it to. It reports
- * how many tenants exist and how many fuel rows are loaded across all of them —
- * enough to tell "database up, nothing loaded" from "database up and populated"
- * without disclosing anything about a particular company.
+ * Not scoped to a company, because /health is the one endpoint without a
+ * session. It reports how many tenants exist and how many fuel rows are loaded
+ * across all of them, which distinguishes "up but empty" from "up and
+ * populated" without disclosing anything about a company.
  */
 export async function countLoaded(): Promise<{
   companies: number;

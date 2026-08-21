@@ -4,19 +4,12 @@ import { monthLabelLong, signedPercent, tonnes } from '../format';
 import type { OutageAnalysis } from '../types';
 
 /**
- * The cross-dataset finding.
+ * The cross-dataset finding: the meters show a collapse, the fuel invoices show
+ * a spike, the incident register explains both, and the headline total falls.
  *
- * This panel exists because no single dataset states what happened: the meters
- * show a collapse, the fuel invoices show a spike, and the incident register
- * explains both — while the headline total *falls*, which makes the month look
- * like an improvement.
- *
- * Everything shown here is computed by `GET /api/analysis/outage`, including
- * which month it is and which incidents are involved. The component used to
- * derive the baselines in the browser and carry the month and both incident IDs
- * as literals in its own prose. That was two implementations of one analysis and
- * a panel that could only ever describe this dataset; now it renders whatever
- * the API detected, and disappears when there is nothing to report.
+ * Everything here is computed by GET /api/analysis/outage, including which month
+ * it is, so the panel renders whatever was detected rather than this dataset in
+ * particular.
  */
 const props = defineProps<{ analysis: OutageAnalysis }>();
 
@@ -38,7 +31,7 @@ const direction = (value: number) => (value > 0 ? 'up' : value < 0 ? 'down' : 'n
         Total emissions moved
         {{ signedPercent(found.emissions.totalChangePct) }} against a median month, which
         reads as the best month of the period. It was not. Grid supply was lost and the
-        site ran on backup diesel — so Scope 2 collapsed while Scope 1 rose to its highest
+        site ran on backup diesel, so Scope 2 collapsed while Scope 1 rose to its highest
         level, because the load moved onto a fuel with a far heavier factor. The total
         fell only because part of the site stopped.
       </p>
@@ -94,7 +87,7 @@ const direction = (value: number) => (value > 0 ? 'up' : value < 0 ? 'down' : 'n
       <li v-for="link in found.chain" :key="link.step">
         <span class="step">{{ link.step }}</span>
         <span>
-          <strong>{{ link.title }}</strong> — {{ link.detail }}
+          <strong>{{ link.title }}</strong>: {{ link.detail }}
           <em class="src">{{ link.source }}</em>
         </span>
       </li>
@@ -127,7 +120,7 @@ const direction = (value: number) => (value > 0 ? 'up' : value < 0 ? 'down' : 'n
     <p v-if="found.incidents.rootCause" class="footnote">
       <strong>Root cause:</strong> <code>{{ found.incidents.rootCause.id }}</code>
       ({{ found.incidents.rootCause.incidentDate }}, severity
-      {{ found.incidents.rootCause.severity }}) — {{ found.incidents.rootCause.description }}
+      {{ found.incidents.rootCause.severity }}): {{ found.incidents.rootCause.description }}
     </p>
 
     <p
@@ -135,7 +128,7 @@ const direction = (value: number) => (value > 0 ? 'up' : value < 0 ? 'down' : 'n
       :key="consequence.id"
       class="footnote"
     >
-      <strong>Human cost:</strong> <code>{{ consequence.id }}</code> — coded
+      <strong>Human cost:</strong> <code>{{ consequence.id }}</code>, coded
       <code>{{ consequence.typeCode }}</code> in the register, identified as
       <strong>{{ consequence.aiCategory }}</strong> by the AI layer, on the evidence
       “{{ consequence.aiEvidenceQuote }}”.
@@ -144,7 +137,7 @@ const direction = (value: number) => (value > 0 ? 'up' : value < 0 ? 'down' : 'n
     <p class="footnote">
       {{ found.counterfactual.assumption }}
       Fuel volume {{ signedPercent(found.fuel.changePct) }} across
-      {{ found.fuel.deliveryCount }} deliveries —
+      {{ found.fuel.deliveryCount }} deliveries,
       {{ Math.round(found.fuel.excessLitres).toLocaleString() }} L above a median month.
     </p>
   </section>
@@ -232,7 +225,7 @@ h2 {
   font-weight: 600;
 }
 
-/* Direction, not sentiment: down is not automatically good here — that is the
+/* Direction, not sentiment: down is not automatically good here, that is the
    entire point of the panel. Both are neutral ink with the arrow doing the work. */
 .delta.up::before {
   content: '▲ ';

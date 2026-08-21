@@ -86,7 +86,7 @@ export async function incidentRoutes(app: FastifyInstance): Promise<void> {
     // A missing incident throws NotFoundError from the service; the error
     // middleware renders the 404. An incident belonging to another company is
     // indistinguishable from one that does not exist, which is the correct
-    // answer to give — confirming it exists would leak that much.
+    // answer to give, confirming it exists would leak that much.
     (request) =>
       service.getIncidentDetail(companyIdOf(request), request.params.id),
   );

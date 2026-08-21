@@ -10,7 +10,7 @@ import { isAbnChecksumValid, normaliseAbn } from './abn.js';
 
 describe('isAbnChecksumValid', () => {
   it('accepts a genuinely valid ABN', () => {
-    // 51 824 753 556 — the ATO's published example.
+    // 51 824 753 556, the ATO's published example.
     expect(isAbnChecksumValid('51824753556')).toBe(true);
   });
 

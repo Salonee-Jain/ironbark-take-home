@@ -22,16 +22,13 @@ export function medianAbsoluteDeviation(values: number[]): number {
 }
 
 /**
- * Modified z-score (Iglewicz & Hoaglin): 0.6745 * (x - median) / MAD.
+ * Modified z-score (Iglewicz and Hoaglin): 0.6745 * (x - median) / MAD. The
+ * constant makes it comparable to an ordinary z-score, and |score| > 3.5 is the
+ * conventional outlier criterion.
  *
- * The constant scales MAD so that, for normally distributed data, the result is
- * comparable to an ordinary z-score. |score| > 3.5 is the conventional outlier
- * criterion and is what the rules below use.
- *
- * Chosen over a hand-picked multiple of the median because a multiple has to be
- * tuned against the answer you already expect. This adapts to how tightly the
- * series actually clusters: in a stable series a 40% move is enormous, in a
- * volatile one it is Tuesday.
+ * Chosen over a multiple of the median, which has to be tuned against the answer
+ * you already expect. This adapts to how tightly the series clusters: in a
+ * stable series a 40% move is enormous, in a volatile one it is Tuesday.
  */
 export function modifiedZScore(value: number, values: number[]): number {
   const mad = medianAbsoluteDeviation(values);

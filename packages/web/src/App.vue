@@ -26,14 +26,9 @@ import type {
   UserProfile,
 } from './types';
 
-/**
- * The outage month is no longer a constant here.
- *
- * It used to be `'2026-03'`, hard-coded from having read the data. The API now
- * detects it, so the dashboard annotates whatever month the analysis actually
- * finds — and annotates nothing when there is nothing to find, which is what a
- * newly signed-up company should see.
- */
+/** The outage month is detected by the API, not hard-coded here, so the
+ *  dashboard annotates whatever the analysis finds and nothing when it finds
+ *  none. */
 const outage = ref<OutageAnalysis | null>(null);
 const outageMonth = computed(() =>
   outage.value?.detected ? outage.value.month : null,
@@ -71,7 +66,7 @@ function toggleTheme(): void {
   applyTheme(theme.value === 'dark' ? 'light' : 'dark');
 }
 
-/** The complete financial year — the unit an NGER report is filed against. */
+/** The complete financial year, the unit an NGER report is filed against. */
 const completeFy = computed(
   () => summary.value?.financialYears.find((fy) => fy.isCompleteYear) ?? null,
 );
@@ -191,7 +186,7 @@ onMounted(() => {
         <p class="eyebrow">Ironbark Ridge Resources · Central Queensland</p>
         <h1>Operations ESG Overview</h1>
         <p v-if="summary" class="period">
-          {{ monthLabelLong(summary.period.firstMonth ?? '') }} —
+          {{ monthLabelLong(summary.period.firstMonth ?? '') }} to
           {{ monthLabelLong(summary.period.lastMonth ?? '') }}
           <span class="dot">·</span> {{ summary.period.months }} months
         </p>
@@ -379,7 +374,7 @@ onMounted(() => {
       <template v-if="section === 'emissions'">
       <ChartFrame
         title="Scope 1 share of the monthly footprint"
-        subtitle="Shown as its own chart rather than a second axis on the columns — two y-scales on one plot align arbitrarily and invent a correlation the data does not contain."
+        subtitle="Shown as its own chart rather than a second axis on the columns. Two y-scales on one plot align arbitrarily and invent a correlation the data does not contain."
       >
         <ShareLineChart :months="months" :highlight-month="outageMonth" />
         <template #table>
@@ -442,7 +437,7 @@ onMounted(() => {
       <footer>
         Every figure is computed from cleaned source records. Corrections keep the
         original value alongside them, so any number here can be traced to the cell it
-        came from — see the data-quality findings above.
+        came from. See the data-quality findings above.
       </footer>
       </template>
       </div>

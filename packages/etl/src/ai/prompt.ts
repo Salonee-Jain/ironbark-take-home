@@ -1,10 +1,7 @@
 /**
- * The prompt.
- *
- * Versioned, because a finding is only meaningful alongside the instructions
- * that produced it. `prompt_version` is stored on every row and forms part of
- * the uniqueness key, so re-running with a changed prompt adds a new set of
- * findings rather than silently overwriting the old ones under the same claim.
+ * The prompt, versioned: a finding is only meaningful alongside the instructions
+ * that produced it. `prompt_version` is part of the uniqueness key, so a changed
+ * prompt adds findings rather than silently overwriting the old ones.
  *
  * Bump PROMPT_VERSION whenever the text below changes.
  */

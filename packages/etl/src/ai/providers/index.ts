@@ -39,12 +39,9 @@ function isProviderName(value: string): value is ProviderName {
 
 /**
  * Chooses a provider from an explicit request, or from whichever key is present.
- *
- * Precedence: `--provider=` flag, then AI_PROVIDER, then autodetection. The
- * autodetect path exists so that dropping a single key into `.env` is the whole
- * setup; it refuses to choose when both keys are present, because picking one
- * silently would mean the model that produced a set of findings depended on
- * which key happened to be exported.
+ * Precedence: `--provider=`, then AI_PROVIDER, then autodetection. It refuses to
+ * choose when both keys are set, because the model that produced a finding is
+ * part of its audit trail.
  *
  * @param requested value of a `--provider=` flag, if one was passed
  */

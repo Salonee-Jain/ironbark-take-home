@@ -4,21 +4,14 @@ import { closePool, getPool } from './index.js';
 /**
  * The emissions golden test.
  *
- * The calculation lives in SQL views so the numbers on screen and the numbers
- * in a psql session cannot drift apart. The cost of that choice is that the
- * arithmetic is not covered by any unit test — which is why this file exists,
- * and why the expected values below are written out longhand from the source
- * rows rather than read back out of another query. A test that asked the
- * database to confirm its own arithmetic would pass no matter what the views
- * said.
+ * The calculation lives in SQL views, so the arithmetic is covered by no unit
+ * test. The expected values below are written out longhand from the source rows
+ * rather than read back from another query: a test that asked the database to
+ * confirm its own arithmetic would pass whatever the views said.
  *
- * Requires a loaded database:
- *
- *   npm run db:up && npm run db:migrate && npm run etl
- *
- * Skips rather than fails when there is none, so `npm test` still works on a
- * machine with no Docker. CI runs it with a Postgres service container, so the
- * skip cannot quietly become permanent.
+ * Requires a loaded database (`npm run db:up && npm run db:migrate && npm run
+ * etl`). Skips rather than fails without one; CI sets REQUIRE_DB so the skip
+ * cannot become permanent.
  */
 
 const COMPANY_SLUG = 'ironbark-ridge';
@@ -40,12 +33,9 @@ async function query<T extends Record<string, unknown>>(
 const num = (value: unknown): number => Number(value);
 
 /**
- * Detected at module scope, not in `beforeAll`.
- *
- * `describe` bodies run at collection time, before any hook has fired, so a
- * flag set in `beforeAll` is still false when `it` vs `it.skip` is chosen — and
- * the whole file skips against a perfectly good database. Top-level await
- * resolves before collection.
+ * Detected at module scope, not in `beforeAll`. `describe` bodies run at
+ * collection time, so a flag set in a hook is still false when `it` or `it.skip`
+ * is chosen, and the whole file skips against a perfectly good database.
  */
 async function loadedCompanyId(): Promise<number | null> {
   try {
@@ -187,7 +177,7 @@ describe('the MTR-07 unit correction reaches the emissions figure', () => {
 
   withDb()('materially raises Scope 2 for the affected months', async () => {
     // October 2025: 277 kWh as recorded against 277,000 corrected. Left alone,
-    // Scope 2 would be understated by ~196 tonnes in that month alone — the
+    // Scope 2 would be understated by ~196 tonnes in that month alone, the
     // single largest error in the dataset, and one that reduces the reported
     // figure, which is the direction nobody questions.
     const [row] = await query(
@@ -250,7 +240,7 @@ describe('the November 2025 fuel gap is visible, not interpolated', () => {
       [companyId],
     );
     expect(num(row?.['scope1_kg_co2e'])).toBe(0);
-    // The site was plainly operating — a full month of electricity is recorded.
+    // The site was plainly operating, a full month of electricity is recorded.
     expect(num(row?.['scope2_kg_co2e'])).toBeGreaterThan(1_000_000);
   });
 });
@@ -290,7 +280,7 @@ describe('March 2026 — the outage month', () => {
        order by total_kg_co2e asc limit 1`,
       [companyId],
     );
-    // November 2025 — the month with no fuel paperwork — is lower.
+    // November 2025, the month with no fuel paperwork, is lower.
     expect(rows[0]?.['month']).toBe('2025-11-01');
   });
 });

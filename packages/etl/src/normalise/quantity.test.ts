@@ -8,7 +8,7 @@ import {
 /**
  * The kL rows are the most expensive defect in the export: loaded unconverted
  * they under-report Scope 1 by ~750,000 litres, and they do it in the direction
- * that produces a *lower* emissions number — the direction nobody questions.
+ * that produces a *lower* emissions number, the direction nobody questions.
  */
 
 describe('normaliseQuantity', () => {
@@ -54,7 +54,7 @@ describe('normaliseQuantity', () => {
   });
 
   it('never loses the original value: litres / factor recovers the input', () => {
-    // The property the compliance requirement actually rests on — every
+    // The property the compliance requirement actually rests on, every
     // normalised number must be reversible to the cell it came from.
     const cases: [string, string][] = [
       ['12500', 'L'],
@@ -99,7 +99,7 @@ describe('implied price cross-check', () => {
   });
 
   it('reads a credit note as a positive price', () => {
-    // Negative quantity against negative cost — still $1.87/L, still checkable.
+    // Negative quantity against negative cost, still $1.87/L, still checkable.
     const price = impliedPricePerLitre(-23375, -12500);
     expect(price).toBeCloseTo(1.87, 2);
     expect(isPricePlausible(price)).toBe(true);

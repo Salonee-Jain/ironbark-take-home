@@ -18,14 +18,10 @@ export const DEFAULT_OPENAI_MODEL = 'gpt-5.5';
 const MAX_OUTPUT_TOKENS = 32_000;
 
 /**
- * No rate table.
- *
- * The Anthropic side has one because this project pins a default model there
- * and the rates were checked. Hard-coding OpenAI rates that nobody verified
- * would produce a confident dollar figure with nothing behind it, which is
- * exactly the failure mode the rest of this pipeline exists to prevent. Set
- * OPENAI_PRICE_PER_MTOK="<input>,<output>" to get an estimate; without it the
- * run reports token counts and declines to guess at the cost.
+ * No rate table. Hard-coding OpenAI rates nobody verified would produce a
+ * confident dollar figure with nothing behind it. Set
+ * OPENAI_PRICE_PER_MTOK="<input>,<output>" for an estimate; without it the run
+ * reports token counts and declines to guess.
  */
 function ratesFromEnv(): Rates | null {
   const raw = process.env['OPENAI_PRICE_PER_MTOK']?.trim();

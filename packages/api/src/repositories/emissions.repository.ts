@@ -1,21 +1,15 @@
 import { getPool } from '@ironbark/db';
 
 /**
- * Emissions data access.
+ * Emissions data access. All SQL for this domain lives here: the queries are
+ * reviewable as a set, and a service can be tested against a fake repository.
+ * Rows come back as the database shapes them, and interpretation is the
+ * service's job.
  *
- * All SQL for this domain lives here and nowhere else. Two reasons that matter
- * beyond tidiness: the queries are reviewable as a set, and a service can be
- * tested against a fake repository without a database.
- *
- * Repositories return rows as the database shapes them — snake_case, no derived
- * fields. Interpretation is the service's job.
- *
- * **Tenancy.** `companyId` is the first parameter of every function here and
- * `$1` of every statement, without exception and without a default. That is
- * deliberately monotonous: a company filter that is sometimes optional is a
- * company filter that will sometimes be omitted, and the failure mode is not an
- * error — it is one client's fuel silently added to another client's report.
- * The value only ever comes from the verified session cookie.
+ * Tenancy: companyId is the first parameter of every function and $1 of every
+ * statement, without exception. A company filter that is sometimes optional is
+ * one that will sometimes be omitted, and the failure mode is not an error, it
+ * is one client's fuel added to another client's report.
  */
 
 export type MonthlyEmissionsRow = {

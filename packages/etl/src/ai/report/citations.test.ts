@@ -9,18 +9,13 @@ import type { ReportFact } from './facts.js';
 import type { Claim } from './schema.js';
 
 /**
- * The citation gate.
+ * The citation gate, tested at the same depth as the grounding gate and for the
+ * same reason: it is the only thing standing between a generated sentence and a
+ * compliance document.
  *
- * Tested at the same depth as the grounding gate in `../grounding.test.ts`, and
- * for the same reason: it is the only thing standing between a generated
- * sentence and a compliance document. The classification gate can lean on a
- * verbatim quote; this one has to check the arithmetic of the prose against a
- * closed set of facts, which is a harder thing to get right and therefore a more
- * important thing to test.
- *
- * The cases below are the failures that actually matter — a fabricated figure
- * wearing a real citation, a record named without being cited, a fact id that
- * does not exist — plus the roundings a correct writer is entitled to make.
+ * The cases below are the failures that matter: a fabricated figure wearing a
+ * real citation, a record named without being cited, a fact id that does not
+ * exist, plus the roundings a correct writer is entitled to make.
  */
 
 const FACTS: ReportFact[] = [

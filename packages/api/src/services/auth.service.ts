@@ -59,7 +59,7 @@ export function slugify(name: string): string {
  * A free slug derived from the company name.
  *
  * Two companies may legitimately share a trading name, so a collision appends a
- * counter rather than being rejected — the slug is an identifier, not a claim
+ * counter rather than being rejected, the slug is an identifier, not a claim
  * to the name. It gives up after a bounded number of attempts instead of
  * looping: if `-2` through `-50` are all taken, something is wrong that another
  * round trip will not fix.

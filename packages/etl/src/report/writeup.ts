@@ -2,19 +2,12 @@
  * Regenerates the data-quality tables in WRITEUP.md.
  *
  *   npm run writeup
- *
- * The write-up makes claims about the source data — 22 rules, 99 findings,
- * seven duplicate invoices — and a hand-typed table making those claims starts
- * drifting from the code the first time a rule changes. Nobody notices, because
- * prose does not fail a build. So the tables are generated from the same
- * loaders the ETL runs, against the same files, and the check below fails if
- * the committed document no longer matches.
- *
- * Deliberately reads `data/raw/` rather than the database: the numbers belong
- * to the export, not to whatever happens to be loaded locally, and a document
- * should be regenerable on a laptop with no Docker running.
- *
  *   npm run writeup -- --check   verify without writing (used by CI)
+ *
+ * The write-up claims 22 rules and 99 findings, and a hand-typed table making
+ * those claims drifts the first time a rule changes, silently, because prose
+ * does not fail a build. Generated from the same loaders the ETL runs, reading
+ * data/raw/ rather than the database so it works with no Docker running.
  */
 import { readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
@@ -47,21 +40,16 @@ function collectIssues(): readonly DataQualityIssue[] {
 const cell = (text: string) => text.replace(/\|/g, '\\|');
 
 /**
- * The rationale is written for a compliance reviewer and runs to several
- * sentences; the full text lives in the rule catalogue, which the API serves at
- * /api/data-quality/rules.
- *
- * The table carries enough of it to stand on its own. One sentence is not
- * reliably enough — several rationales open with a short definition ("An ABN is
- * 11 digits.") that says nothing about what was found — so sentences are taken
- * until the summary carries some substance, capped at two so the table stays
- * readable.
+ * The table carries enough of the rationale to stand on its own, capped at two
+ * sentences so it stays readable. One is not reliably enough: several rationales
+ * open with a definition that says nothing about what was found. The full text
+ * is served at /api/data-quality/rules.
  */
 const SUMMARY_MIN_CHARS = 110;
 
 function summarise(text: string): string {
   // A sentence ends at a terminator followed by whitespace or end-of-string.
-  // Splitting on the terminator alone truncates mid-number — the rationale for
+  // Splitting on the terminator alone truncates mid-number, the rationale for
   // FUEL-FORMAT-01 quotes `132182.58`, which is one sentence, not two.
   const sentences = text.match(/.*?[.!?](?=\s|$)/gs) ?? [text];
 

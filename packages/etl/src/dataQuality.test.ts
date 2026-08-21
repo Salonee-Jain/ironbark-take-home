@@ -10,20 +10,12 @@ import { loadSuppliers } from './load/suppliers.js';
 import { ALL_RULES, RULES, type RuleId } from './rules.js';
 
 /**
- * The regression net for the whole cleaning layer.
+ * The regression net for the whole cleaning layer, run against the real export
+ * rather than a fixture. The question is not "does the engine work in principle"
+ * but "does it still find the 99 things we told the client we found".
  *
- * Run against the real export in `data/raw/`, not a synthetic fixture. That
- * file is committed and never modified — it is the client's data, and the
- * question this suite answers is not "does the engine work in principle" but
- * "does it still find the 99 things we told the client we found". A fixture
- * would drift from the data it was written to describe; this cannot.
- *
- * Loaders are pure — CSV in, records and findings out — so none of this needs a
- * database.
- *
- * Where a number below is asserted exactly, it is a number that appears in the
- * write-up. If one of these changes, the write-up is now wrong, and that is
- * precisely the failure this suite is meant to make loud.
+ * Loaders are pure, so none of this needs a database. Numbers asserted exactly
+ * here are numbers that appear in the write-up.
  */
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../..');
@@ -237,7 +229,7 @@ describe('fuel deliveries', () => {
     ]);
     expect(flagged.every((i) => i.action === 'flagged')).toBe(true);
 
-    // Still sitting where the invoice put it — a guessed site area would be a
+    // Still sitting where the invoice put it, a guessed site area would be a
     // confident, wrong breakdown.
     expect(fuel.find((f) => f.invoiceNo === 'INV-40800')?.siteArea).toBe(
       'Light Vehicles',
@@ -256,7 +248,7 @@ describe('fuel deliveries', () => {
   });
 
   it('catches the March 2026 volume spike that a fixed threshold would miss', () => {
-    // 1.49x the median — under any round multiple anyone would pick in advance,
+    // 1.49x the median, under any round multiple anyone would pick in advance,
     // but six deviations clear of the rest of the series.
     const spike = forRule('FUEL-VOLUME-SPIKE-01');
     expect(spike).toHaveLength(1);
@@ -272,7 +264,7 @@ describe('electricity readings', () => {
     expect(corrected.every((i) => i.action === 'fixed')).toBe(true);
     expect(corrected.every((i) => i.recordKey?.startsWith('MTR-07'))).toBe(true);
 
-    // Original and corrected value both recorded — this one materially raises
+    // Original and corrected value both recorded, this one materially raises
     // Scope 2, so it has to be traceable.
     const october = corrected.find((i) => i.recordKey === 'MTR-07 2025-10');
     expect(october?.originalValue).toBe('277 kWh');
@@ -289,7 +281,7 @@ describe('electricity readings', () => {
 
   it('flags the March 2026 collapse but does NOT correct it', () => {
     // The most important assertion in this file. A pipeline that smoothed this
-    // reading would erase the substation failure — the one event in the period
+    // reading would erase the substation failure, the one event in the period
     // that explains why emissions moved.
     const drop = forRule('ELEC-CONSUMPTION-DROP-01');
     expect(drop).toHaveLength(1);
@@ -306,7 +298,7 @@ describe('incident register', () => {
     expect(duplicate[0]?.originalValue).toBe('INC-2025-011');
     expect(duplicate[0]?.resolvedValue).toBe('INC-2025-011-2');
 
-    // Both events survive — unlike the fuel duplicates, these are distinct
+    // Both events survive, unlike the fuel duplicates, these are distinct
     // incidents and dropping either would lose a real event.
     const ids = incidents.map((i) => i.id);
     expect(ids).toContain('INC-2025-011');
@@ -349,7 +341,7 @@ describe('suppliers', () => {
       'Ironline Fuel Distributors P/L',
     ]);
 
-    // Both rows still load — the client ledger contains both, and reconciling
+    // Both rows still load, the client ledger contains both, and reconciling
     // against it later needs both visible.
     expect(suppliers).toHaveLength(15);
   });

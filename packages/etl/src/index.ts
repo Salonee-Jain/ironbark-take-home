@@ -1,18 +1,11 @@
 /**
  * ETL entry point.
  *
- * Reads the untouched export from `data/raw/`, normalises it, records every
- * problem it finds, and loads the result into Postgres in a single transaction.
- *
  *   npm run etl                        load into the demo tenant
  *   npm run etl -- --company <slug>    load into another tenant
  *
- * Idempotent: it replaces the tenant's own rows and reloads from source, so
- * running it twice leaves the database in the same state as running it once.
- *
- * The cleaning itself lives in `ingest.ts`, shared with `POST /api/uploads`.
- * This file is the command-line skin over it: reading files, printing a report,
- * and choosing which company the load belongs to.
+ * Idempotent: it replaces the tenant's own rows and reloads from source. The
+ * cleaning itself lives in ingest.ts, shared with POST /api/uploads.
  */
 import { readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';

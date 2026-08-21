@@ -4,21 +4,17 @@ import { loadDatabaseUrl } from './env.js';
 const { Pool } = pg;
 
 /**
- * Two `pg` defaults would quietly corrupt everything this project reports, so
- * they are overridden once, here, where every consumer inherits the fix.
+ * Two `pg` defaults would quietly corrupt what this project reports, so both are
+ * overridden here, where every consumer inherits the fix.
  *
- * DATE (oid 1082) is parsed into a JS `Date` by default — local midnight. Read
- * `2026-03-01` in Brisbane and print it in UTC and you get February. Every
- * month bucket in the app would shift by one for anyone west of Greenwich.
- * Dates stay strings, consistent with how the ETL treats them.
+ * DATE is parsed into a JS Date at local midnight, so `2026-03-01` read in
+ * Brisbane and printed in UTC becomes February, shifting every month bucket.
+ * Dates stay strings.
  *
- * NUMERIC (oid 1700) is returned as a *string*, because Postgres numerics can
- * exceed what a double can represent. Left alone, `kg_co2e` arrives as "1893.90"
- * and JSON-serialises as a quoted string, so every chart silently plots nothing
- * — or worse, string-concatenates a total. The largest value this schema can
- * hold is under 1e12, well inside the 2^53 range a double represents exactly,
- * so parsing to a number is safe here. It would not be for a ledger in cents at
- * national scale, which is why this is a considered override and not a default.
+ * NUMERIC is returned as a string, because Postgres numerics can exceed a
+ * double. Left alone, kg_co2e arrives as "1893.90" and every chart silently
+ * plots nothing. The largest value this schema holds is under 1e12, well inside
+ * what a double represents exactly, so parsing is safe here.
  */
 pg.types.setTypeParser(pg.types.builtins.DATE, (value: string) => value);
 pg.types.setTypeParser(pg.types.builtins.NUMERIC, (value: string) =>
@@ -34,7 +30,7 @@ let pool: pg.Pool | undefined;
 /**
  * Lazily created singleton pool.
  *
- * Lazy because importing this module must not open sockets — the unit tests in
+ * Lazy because importing this module must not open sockets, the unit tests in
  * step 8 import the normalisers from packages that transitively touch this, and
  * they have no database.
  */

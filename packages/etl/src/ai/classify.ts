@@ -5,10 +5,8 @@
  *   npm run ai:classify -- --force             reclassify everything
  *   npm run ai:classify -- --provider=openai   choose the vendor for this run
  *
- * Reads incidents from the database, sends them to the configured model in
- * batches, verifies every finding against its source record, and writes the
- * survivors to a cache committed to the repo. Requires ANTHROPIC_API_KEY or
- * OPENAI_API_KEY; nothing else in the project needs either.
+ * Verifies every finding against its source record and writes the survivors to a
+ * cache committed to the repo. Requires ANTHROPIC_API_KEY or OPENAI_API_KEY.
  */
 import { closePool, getPool, loadEnv } from '@ironbark/db';
 import { writeCache, readCache, type FindingsCache } from './cache.js';
@@ -30,11 +28,8 @@ import {
 import { providerFlag, resolveProvider, type ChatTurn } from './providers/index.js';
 
 /**
- * Incidents per request.
- *
- * Small enough that one bad response costs little and the model keeps every
- * description in close view; large enough that the system prompt is amortised
- * rather than re-sent 42 times.
+ * Incidents per request. Small enough that one bad response costs little, large
+ * enough that the system prompt is not re-sent 42 times.
  */
 const BATCH_SIZE = 8;
 
@@ -81,7 +76,7 @@ async function main(): Promise<void> {
 
   // Explicitly, before the key is read. The pool loads the .env lazily on first
   // connect, which used to be enough because the client was constructed after
-  // the incidents query — but resolving the provider first means nothing has
+  // the incidents query, but resolving the provider first means nothing has
   // touched the database yet, and the key would look absent when it is merely
   // unloaded.
   loadEnv();
@@ -100,7 +95,7 @@ async function main(): Promise<void> {
 
   // Reusable only if it was produced by this same prompt *and* this same model.
   // Every finding is stamped with the model that produced it, so mixing two
-  // vendors' output under one label would make the audit trail a lie — and a
+  // vendors' output under one label would make the audit trail a lie, and a
   // finding the other model would not have made is not a finding this run can
   // claim. Switching provider therefore reclassifies from scratch.
   const reusable =

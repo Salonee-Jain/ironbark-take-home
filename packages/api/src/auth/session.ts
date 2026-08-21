@@ -3,17 +3,14 @@ import { randomBytes } from 'node:crypto';
 /**
  * Session configuration.
  *
- * The token is a JWT carried in an **httpOnly cookie**, not a bearer token in
- * localStorage. That is the one security decision here worth defending:
- * anything readable by `document.cookie` or `localStorage` is readable by any
- * script that gets onto the page, and a stolen token for a compliance tool is a
- * stolen copy of a client's operational data. httpOnly closes that off.
+ * The token is a JWT in an httpOnly cookie rather than a bearer token in
+ * localStorage: anything readable by a script on the page is readable by any
+ * script that gets onto the page, and a stolen token here is a stolen copy of a
+ * client's operational data.
  *
- * The cost of the cookie is CSRF, which localStorage does not have. It is paid
- * with `sameSite: 'strict'` plus a CORS policy that only reflects known
- * origins, which is sufficient here because there is no cross-site flow the app
- * needs to support. The dev frontend reaches the API through Vite's proxy, so
- * browser and API share an origin and a strict cookie is sent normally.
+ * The cost of a cookie is CSRF, paid with sameSite strict plus a CORS allowlist.
+ * The dev frontend goes through Vite's proxy, so browser and API share an origin
+ * and a strict cookie is sent normally.
  */
 
 export const SESSION_COOKIE = 'ironbark_session';
@@ -31,16 +28,13 @@ export type SessionClaims = {
 };
 
 /**
- * The signing secret.
- *
- * Required in production and refused if left at a placeholder — a signing key
- * that ships in a repository is not a signing key, it is a public statement
+ * The signing secret. Required in production and refused if left at a
+ * placeholder: a signing key that ships in a repository is a public statement
  * that anyone may mint a session for any company.
  *
- * In development a random secret is generated per process instead of failing,
- * so `npm run api` works from a fresh clone. The side effect is honest and
- * intended: restarting the API invalidates existing sessions, which is exactly
- * what an ephemeral key means.
+ * In development a random secret is generated per process instead of failing, so
+ * `npm run api` works from a fresh clone. Sessions then do not survive a
+ * restart, which is what an ephemeral key means.
  */
 export function loadJwtSecret(): string {
   const secret = process.env['JWT_SECRET'];

@@ -5,15 +5,10 @@ import { loadFuelDeliveries } from './fuel.js';
 import { loadIncidents } from './incidents.js';
 
 /**
- * The three rules the real export never triggers.
- *
- * `dataQuality.test.ts` asserts that these stay silent against `data/raw/`, and
- * that assertion is only worth anything if the rules can be shown to fire at
- * all. Without this file, a rule that had been quietly broken would look
- * identical to a rule that simply had nothing to report.
- *
- * These are the smallest fixtures that trigger each one — a valid header and
- * one bad row.
+ * The three rules the real export never triggers. `dataQuality.test.ts` asserts
+ * they stay silent, which is only worth something if they can be shown to fire
+ * at all: without this, a quietly broken rule looks identical to a rule with
+ * nothing to report.
  */
 
 const FUEL_HEADER =
@@ -49,7 +44,7 @@ describe('FUEL-PRICE-01 — implied price outside the plausible band', () => {
     const price = issues.filter((i) => i.ruleId === 'FUEL-PRICE-01');
     expect(price).toHaveLength(1);
     expect(price[0]?.severity).toBe('error');
-    // Flagged, not fixed — the check knows one of the two numbers is wrong but
+    // Flagged, not fixed, the check knows one of the two numbers is wrong but
     // not which one.
     expect(price[0]?.action).toBe('flagged');
   });

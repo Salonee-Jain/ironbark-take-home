@@ -19,13 +19,10 @@ export type ElectricityReadingRecord = {
 };
 
 /**
- * How many orders of magnitude below a meter's own maximum a reading has to sit
- * before it is treated as a unit error rather than a quiet month.
- *
- * 2.5 leaves a wide margin either side of the real cases. The MTR-07 readings
- * are ~3 orders of magnitude down (kWh recorded as MWh). The March 2026 outage
- * — the thing this must NOT touch — is 0.5 orders down. There is nothing in
- * between, so the threshold is not finely balanced.
+ * How far below a meter's own maximum a reading must sit before it is treated as
+ * a unit error rather than a quiet month. The MTR-07 readings are about 3 orders
+ * down; the March 2026 outage, which this must not touch, is 0.5 orders down.
+ * Nothing sits in between.
  */
 const UNIT_ERROR_MAGNITUDE_GAP = 2.5;
 

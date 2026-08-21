@@ -2,7 +2,7 @@
  * Application errors.
  *
  * Services throw these; the error middleware turns them into responses. That
- * keeps HTTP concerns out of the service layer — a service should be able to
+ * keeps HTTP concerns out of the service layer, a service should be able to
  * say "that incident does not exist" without knowing what a 404 is.
  */
 

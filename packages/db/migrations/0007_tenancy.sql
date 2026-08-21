@@ -1,29 +1,12 @@
 -- Multi-tenancy: companies, users, and an owner on every fact table.
 --
--- Up to here the schema described one mine. Once a company can sign up and
--- upload its own export, "the fuel deliveries" stops being a well-formed idea —
--- there is only ever *a company's* fuel deliveries, and any query that forgets
--- to say which one is a cross-tenant data leak rather than a slow query.
---
--- Three decisions worth stating, because they are the ones a reviewer would
--- otherwise have to reverse-engineer from the constraints:
---
---  1. `company_id` is NOT NULL on every fact table, and it is part of every
---     uniqueness constraint that used to be global. Invoice number 40497 is
---     unique *within a company*; two companies both having one is normal data,
---     not a duplicate, and the old `unique (invoice_no)` would have rejected
---     the second company's upload with a message about the first company's
---     data. Scoping the constraint is what makes the isolation real rather
---     than a convention the application layer is trusted to remember.
---
---  2. Reference data stays global: emission factors, incident type codes and
---     the data-quality rule catalogue are *our* taxonomy, identical for every
---     tenant, and copying them per company would let two tenants silently
---     disagree about what 2.70 kg CO2e/L means. Site areas are the exception —
---     see below.
---
---  3. Deleting a company deletes its data, by cascade, all the way down. A
---     tenant that cannot be removed is a compliance problem in itself.
+-- Three decisions worth stating up front:
+--   1. company_id is NOT NULL on every fact table and part of every uniqueness
+--      constraint that used to be global. Invoice 40497 is unique within a
+--      company, not globally.
+--   2. Reference data stays global. Emission factors and rule definitions are
+--      our taxonomy, and two tenants must not disagree about what a factor means.
+--   3. Deleting a company cascades all the way down.
 
 -- ---------------------------------------------------------------------------
 -- Companies
@@ -45,14 +28,9 @@ create table companies (
     created_at timestamptz not null default now()
 );
 
--- ---------------------------------------------------------------------------
--- Users
---
--- One company per user. Not because people never straddle two organisations,
--- but because a nullable "current company" on the session is the shape that
--- produces cross-tenant bugs, and multi-company membership is a join table this
--- schema can grow later without changing anything already written.
--- ---------------------------------------------------------------------------
+-- Users. One company each: a nullable "current company" on the session is the
+-- shape that produces cross-tenant bugs. Multi-company membership can be added
+-- later as a join table without changing anything here.
 create table users (
     id            bigint generated always as identity primary key,
     company_id    bigint not null references companies (id) on delete cascade,
@@ -80,14 +58,9 @@ create table users (
 
 create index users_company_idx on users (company_id);
 
--- ---------------------------------------------------------------------------
--- Load audit
---
--- Uploads replace the company's data, so without this there would be no record
--- that a load ever happened, who ran it, or what the file looked like when it
--- did. "Which upload produced the number in last quarter's report" is exactly
--- the question a compliance tool has to be able to answer.
--- ---------------------------------------------------------------------------
+-- Load audit. Uploads replace the company's data, so without this there is no
+-- record of who loaded what. "Which upload produced last quarter's number" is a
+-- question a compliance tool has to answer.
 create table data_loads (
     id                  bigint generated always as identity primary key,
     company_id          bigint not null references companies (id) on delete cascade,
@@ -121,19 +94,10 @@ create table data_loads (
 
 create index data_loads_company_idx on data_loads (company_id, started_at desc);
 
--- ---------------------------------------------------------------------------
--- Seed: the demo tenant
---
--- The 18 months of Ironbark Ridge data already in this database has to belong
--- to someone, and a reviewer needs an account that can see it without running
--- an upload first.
---
--- The password is `demo1234`, hashed with the same function the API uses. A
--- committed credential is normally a finding, not a feature — it is acceptable
--- here and only here because the account grants access to a fictional mine's
--- fictional data in a local container. It is seeded from a migration precisely
--- so it is visible in the schema rather than hidden in a fixture.
--- ---------------------------------------------------------------------------
+-- The demo tenant. Password `demo1234`, hashed with the same function the API
+-- uses. A committed credential is normally a finding; it is acceptable here
+-- because it opens a fictional mine's data in a local container, and seeding it
+-- from a migration keeps it visible rather than hidden in a fixture.
 insert into companies (slug, name, abn)
 values ('ironbark-ridge', 'Ironbark Ridge Resources', null);
 
@@ -147,19 +111,13 @@ select
 from companies c
 where c.slug = 'ironbark-ridge';
 
--- ---------------------------------------------------------------------------
--- Site areas
+-- Site areas: the one piece of reference data that is not global. Rows 1-6 are
+-- the shared taxonomy (company_id null); anything else came from one client's
+-- export and must not appear in another client's dropdowns.
 --
--- The one piece of reference data that is *not* global. Rows 1-6 are the
--- taxonomy we seeded and every tenant shares them (company_id null). Anything
--- the loader meets that is not in that list is a value from one client's
--- export, and inserting it globally would publish one company's pit names into
--- another company's dropdowns.
---
--- Two partial unique indexes rather than one composite: `unique (company_id,
--- name)` treats NULL as distinct from itself, so it would happily allow six
--- more copies of 'Haul Fleet' in the global set.
--- ---------------------------------------------------------------------------
+-- Two partial indexes rather than one composite, because unique (company_id,
+-- name) treats NULL as distinct from itself and would allow duplicates in the
+-- global set.
 alter table site_areas
     add column company_id bigint references companies (id) on delete cascade;
 
@@ -171,14 +129,9 @@ create unique index site_areas_global_name_idx
 create unique index site_areas_company_name_idx
     on site_areas (company_id, name) where company_id is not null;
 
--- ---------------------------------------------------------------------------
--- Fact tables
---
--- Added nullable, backfilled to the demo company, then made NOT NULL. Doing it
--- in one `add column ... not null default` would work too, but leaving the
--- default in place is a trap: the next table created without an explicit
--- company_id would silently join the demo tenant.
--- ---------------------------------------------------------------------------
+-- Fact tables: added nullable, backfilled, then made NOT NULL. A column default
+-- would be a trap, since the next insert without an explicit company_id would
+-- silently join the demo tenant.
 
 alter table fuel_deliveries      add column company_id bigint references companies (id) on delete cascade;
 alter table electricity_readings add column company_id bigint references companies (id) on delete cascade;
@@ -210,15 +163,9 @@ alter table suppliers            alter column company_id set not null;
 alter table data_quality_issues  alter column company_id set not null;
 alter table ai_incident_findings alter column company_id set not null;
 
--- ---------------------------------------------------------------------------
--- Re-scope the identity constraints
---
--- `meters` and `incidents` had business keys as their primary key. Those keys
--- are the client's, not ours, and two clients will collide on them eventually —
--- INC-2025-001 is the obvious one. The primary key becomes (company_id, key),
--- which keeps the readable identifier in URLs and reports while making the
--- database enforce that a lookup without a company is not a lookup at all.
--- ---------------------------------------------------------------------------
+-- Re-scope the identity constraints. Business keys like INC-2025-001 are the
+-- client's, and two clients will collide on them. The primary key becomes
+-- (company_id, key), so a lookup without a company is not a lookup at all.
 
 -- meters -> electricity_readings
 alter table electricity_readings drop constraint electricity_readings_meter_id_fkey;
@@ -247,15 +194,9 @@ alter table ai_incident_findings
 alter table fuel_deliveries drop constraint fuel_deliveries_invoice_no_key;
 alter table fuel_deliveries add constraint fuel_deliveries_invoice_no_key unique (company_id, invoice_no);
 
--- ---------------------------------------------------------------------------
--- Grounding trigger, re-scoped
---
--- The check that no AI finding can be stored unless its evidence quote appears
--- verbatim in the incident it cites is the single most important guard in this
--- project, so it has to survive tenancy rather than be quietly weakened by it.
--- Looking the incident up by id alone would now find *another company's*
--- incident with the same id and validate the quote against the wrong text.
--- ---------------------------------------------------------------------------
+-- Grounding trigger, re-scoped. Looking an incident up by id alone would now
+-- find another company's incident with the same id and validate the quote
+-- against the wrong text.
 create or replace function assert_ai_finding_is_grounded() returns trigger
 language plpgsql
 as $$
@@ -288,14 +229,9 @@ begin
 end;
 $$;
 
--- ---------------------------------------------------------------------------
--- Tenant-first indexes
---
--- Every analytical query now begins `where company_id = $1`, so the existing
--- single-column indexes are the wrong shape: they find every tenant's March
--- and then discard all but one. Leading with company_id makes the scan
--- proportional to one company's data instead of the whole table.
--- ---------------------------------------------------------------------------
+-- Tenant-first indexes. Every analytical query begins `where company_id = $1`,
+-- so a single-column index on the date finds every tenant's March and discards
+-- all but one.
 drop index fuel_deliveries_delivery_date_idx;
 drop index electricity_readings_period_idx;
 drop index incidents_date_idx;

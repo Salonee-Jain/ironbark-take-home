@@ -4,23 +4,15 @@ import { count, monthLabelLong, monthLabel, tonnes } from '../format';
 import type { MonthlyEmissions } from '../types';
 
 /**
- * Monthly Scope 1 / Scope 2 columns.
- *
- * Hand-built SVG rather than a chart library, so the mark specs are exact: a
- * 2px surface gap between stacked segments (white doing the separating, not a
- * stroke), a 4px rounded data-end that stays square at the baseline, hairline
- * solid gridlines one step off the surface, and columns capped at 24px so the
- * band keeps its air.
- *
- * Scope 2 sits at the base because it is the stable series; Scope 1 rides on
- * top because it is the one that moves. In March 2026 the blue collapses and
- * the orange swells in the same column, which is the whole story in one mark.
+ * Monthly Scope 1 / Scope 2 columns. Hand-built SVG so the mark specs are exact.
+ * Scope 2 sits at the base because it is the stable series; Scope 1 rides on top
+ * because it is the one that moves.
  */
 const props = defineProps<{
   months: MonthlyEmissions[];
   /**
    * Month to annotate, e.g. the outage. Null when the analysis found
-   * nothing to annotate — the caller passes a detection result, not a guess.
+   * nothing to annotate, the caller passes a detection result, not a guess.
    */
   highlightMonth?: string | null;
   highlightNote?: string;
@@ -30,7 +22,7 @@ const W = 900;
 const H = 310;
 // Extra top padding reserves a lane for the annotation. Placed over the plot it
 // collided with the neighbouring column, which is the exact failure the mark
-// specs warn about — a label must never be clipped by or overlap another mark.
+// specs warn about, a label must never be clipped by or overlap another mark.
 const PAD = { top: 30, right: 16, bottom: 34, left: 52 };
 
 const plotW = W - PAD.left - PAD.right;
@@ -72,7 +64,7 @@ function h(value: number): number {
   return (value / axisTop.value) * plotH;
 }
 
-/** Rect with only the top corners rounded — the data end, square at the base. */
+/** Rect with only the top corners rounded, the data end, square at the base. */
 function topRoundedPath(
   px: number,
   py: number,

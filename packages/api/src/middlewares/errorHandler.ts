@@ -4,8 +4,8 @@ import { AppError } from '../errors.js';
 /**
  * The single place that decides what an error looks like on the wire.
  *
- * Centralised so the shape cannot drift between endpoints — a client that can
- * parse one error can parse all of them — and so an unexpected exception cannot
+ * Centralised so the shape cannot drift between endpoints, a client that can
+ * parse one error can parse all of them, and so an unexpected exception cannot
  * leak a stack trace or a SQL fragment to a caller.
  */
 export function registerErrorHandler(app: FastifyInstance): void {

@@ -5,18 +5,14 @@ import { SESSION_COOKIE, type SessionClaims } from '../auth/session.js';
 /**
  * The preHandler that turns a cookie into a tenant.
  *
- * Registered as a decorator rather than a global hook on purpose. A global hook
- * would make every route authenticated by default, which sounds safer and is
- * not: `/health` and `/docs` have to stay open, so the list of exemptions would
- * live *inside* this file, and adding a public route would mean editing the
- * authentication middleware. Opting in per route group keeps the decision next
- * to the route, where a reviewer reading `uploads.routes.ts` can see it.
+ * A decorator rather than a global hook. A global hook would need its list of
+ * exemptions (/health, /docs) inside this file, so adding a public route would
+ * mean editing the authentication middleware. Opting in per route group keeps
+ * the decision next to the route.
  *
- * What this guarantees to everything downstream: `request.session.companyId` is
- * a company that exists, and is the only company this request may read or
- * write. Handlers never take a company from the path, the query or the body —
- * a tenant identifier a caller can type is a tenant identifier a caller can
- * change.
+ * What it guarantees downstream: request.session.companyId is a company that
+ * exists and is the only company this request may touch. Handlers never take a
+ * company from the path, the query or the body.
  */
 
 export class UnauthenticatedError extends AppError {
@@ -71,13 +67,10 @@ export function registerAuthentication(app: FastifyInstance): void {
 }
 
 /**
- * The company for this request.
- *
- * A function rather than reading `request.session!.companyId` at each call
- * site: the non-null assertion would be repeated a dozen times, and one of them
- * would eventually sit on a route that forgot its preHandler and silently read
- * `undefined` — which in a `where company_id = $1` is not an error, it is an
- * empty dashboard nobody can explain.
+ * The company for this request. A function rather than a non-null assertion at a
+ * dozen call sites: one of them would eventually sit on a route that forgot its
+ * preHandler, and `where company_id = undefined` is not an error, it is an empty
+ * dashboard nobody can explain.
  */
 export function companyIdOf(request: FastifyRequest): number {
   const companyId = request.session?.companyId;

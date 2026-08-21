@@ -11,16 +11,9 @@ import { loadSuppliers } from './load/suppliers.js';
 import { writeLoad } from './writer.js';
 
 /**
- * One ingest, for one company, from CSV text.
- *
- * This is the seam that lets `npm run etl` and `POST /api/uploads` be the same
- * pipeline rather than two implementations that drift. The CLI reads the files
- * from `data/raw/`; the API takes them off a multipart request. Neither knows
- * anything the other does not, so a data-quality rule cannot be enforced on the
- * command line and quietly skipped on upload.
- *
- * Everything below the parse is deliberately identical to what the CLI always
- * did: one transaction, replace the company's data, record every finding.
+ * One ingest, for one company, from CSV text. This is the seam that lets
+ * `npm run etl` and `POST /api/uploads` be the same pipeline rather than two
+ * implementations that drift.
  */
 
 export const INGEST_FILES = [
@@ -57,13 +50,9 @@ export class MissingFileError extends Error {
 }
 
 /**
- * Which files an upload must carry.
- *
- * All five, and this is the direct consequence of replace-on-upload: a load
- * that accepted only `incident_register.csv` would delete the company's fuel
- * and electricity along with the old incidents, and report success. The
- * alternative — merging per file — is a real feature, but it is a different one,
- * and pretending to offer it here would lose data.
+ * All five files are required, which follows from replace-on-upload: a load
+ * carrying only the incident register would delete the company's fuel and
+ * electricity along with the old incidents, and report success.
  */
 function assertComplete(input: IngestInput): asserts input is Required<IngestInput> {
   const missing = INGEST_FILES.filter((name) => {

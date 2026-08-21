@@ -3,7 +3,7 @@ import { getPool, withClient } from '@ironbark/db';
 /**
  * Accounts and tenants.
  *
- * The only repository whose queries are *not* scoped by company — it is the one
+ * The only repository whose queries are *not* scoped by company, it is the one
  * that decides which company a request belongs to. Everything downstream takes
  * that answer as given, which is why the lookups here are by primary key or by
  * a unique constraint and never by anything a caller can widen.
@@ -73,7 +73,7 @@ export async function slugExists(slug: string): Promise<boolean> {
  * Create a company and its first user together.
  *
  * One transaction, because a company with no way to sign into it is not a
- * half-finished signup — it is an orphan row that permanently holds a slug
+ * half-finished signup, it is an orphan row that permanently holds a slug
  * nobody can use.
  */
 export async function createCompanyWithOwner(input: {

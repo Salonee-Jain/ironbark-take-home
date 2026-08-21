@@ -2,11 +2,8 @@
 import { computed } from 'vue';
 
 /**
- * Horizontal bars for a ranked list.
- *
- * One series, so one colour for every bar — darkening the bigger bars would
- * double-encode length as hue and burn the only free channel on information the
- * bar length already carries.
+ * Horizontal bars for a ranked list. One series, so one colour: darkening the
+ * bigger bars would double-encode length as hue.
  */
 const props = defineProps<{
   items: { label: string; value: number; note?: string }[];

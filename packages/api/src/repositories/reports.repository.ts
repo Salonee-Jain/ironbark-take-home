@@ -4,18 +4,11 @@ import type { ReportFact, ReportRejection, ReportSectionOutput } from '@ironbark
 /**
  * Data access for the cited compliance summary.
  *
- * Two jobs, and only the second is unusual. The first is the handful of
- * aggregates the fact pack needs that no other endpoint already asks for —
- * everything else is composed in the service from the existing emissions,
- * incident and data-quality repositories rather than re-queried here, because a
- * summary that computed its own totals could disagree with the dashboard beside
- * it, and a compliance document that contradicts the screen it sits on is worse
- * than no document.
- *
- * The second is storing the report itself: prose, the fact pack it was written
- * from, and what the citation gate refused.
- *
- * **Tenancy**, as everywhere: `companyId` is `$1` of every statement.
+ * Two jobs. The aggregates the fact pack needs that no other endpoint already
+ * asks for, since everything else is composed in the service from the existing
+ * repositories rather than re-queried here: a summary that computed its own
+ * totals could contradict the dashboard beside it. And storing the report
+ * itself, with the fact pack it was written from and what the gate refused.
  */
 
 export type AiFindingSummaryRow = {
@@ -83,7 +76,7 @@ export type StoredReportRow = {
   generated_at: string;
 };
 
-/** Slug to id, for the CLI — the API itself never takes a company from a caller. */
+/** Slug to id, for the CLI, the API itself never takes a company from a caller. */
 export async function findCompanyIdBySlug(
   slug: string,
 ): Promise<{ id: number; name: string } | undefined> {
@@ -183,16 +176,11 @@ export async function findSupplierTotals(
 }
 
 /**
- * Fuel volumes, grouped the way the emissions views group them.
- *
- * Keyed on `factor_key`, not on `fuel_type`. The source spells the fuel as
- * "Diesel" and "Petrol (ULP)" — client vocabulary, preserved on the row — while
- * the factor key is the normalised join to `emission_factors`. An earlier
- * version of this query filtered on `fuel_type = 'diesel'` and reported zero
- * litres beside a Scope 1 total of 22,000 tonnes.
- *
- * The factor comes back with the volume so the fact can state the conversion it
- * rests on rather than repeating a number from a comment.
+ * Fuel volumes, grouped the way the emissions views group them, and keyed on
+ * `factor_key` rather than `fuel_type`. The source spells the fuel "Diesel" and
+ * "Petrol (ULP)"; the factor key is the normalised join. An earlier version
+ * filtered on `fuel_type = 'diesel'` and reported zero litres beside a Scope 1
+ * total of 22,000 tonnes.
  */
 export async function findFuelTotals(
   companyId: number,
@@ -241,7 +229,7 @@ const REPORT_COLUMNS = `
  *
  * Deliberately not filtered by fact digest. A report generated against figures
  * that have since moved is still the report this company published, and the
- * service re-verifies it against current facts and says so — which is more use
+ * service re-verifies it against current facts and says so, which is more use
  * to a compliance reader than pretending no report exists.
  */
 export async function findLatestReport(

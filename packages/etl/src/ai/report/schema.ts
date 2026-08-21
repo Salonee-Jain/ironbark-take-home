@@ -3,17 +3,13 @@ import { z } from 'zod';
 /**
  * The shape the model must return for a compliance summary.
  *
- * A flat list of claims rather than paragraphs of prose, and that is the load-
- * bearing decision in this whole feature. Prose cannot be verified: a paragraph
- * mixing four figures and one invented one is a single blob that either ships
- * whole or not at all. A claim is the unit a citation can attach to and the
- * unit the gate can throw away on its own, so one unsupported sentence costs
- * one sentence rather than the report.
+ * A flat list of claims rather than paragraphs, which is the load-bearing
+ * decision here. Prose cannot be verified: a paragraph mixing four real figures
+ * and one invented one either ships whole or not at all. A claim is the unit a
+ * citation attaches to, so one unsupported sentence costs one sentence.
  *
- * Sections are an enum rather than free text so the report has the same
- * skeleton every month. A summary whose headings drift between runs cannot be
- * diffed, and a compliance document nobody can diff is a document nobody can
- * review.
+ * Sections are an enum so the report has the same skeleton every month. A
+ * document nobody can diff is a document nobody can review.
  */
 
 export const REPORT_SECTIONS = [

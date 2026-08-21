@@ -1,14 +1,12 @@
 /**
- * Migration runner.
+ * Migration runner. Applies every .sql file in migrations/ in filename order,
+ * once, inside a transaction, and records a checksum of what it ran.
  *
- * Applies every `.sql` file in `migrations/` in filename order, once, inside a
- * transaction, and records a checksum of what it ran.
+ * Hand-rolled rather than pulled from an ORM: the schema is the part of this
+ * project a reviewer is most likely to read, and plain SQL reads better than a
+ * generated DSL.
  *
- * Deliberately hand-rolled rather than pulled from an ORM: the schema is the
- * part of this project a reviewer is most likely to read, and plain SQL files
- * with comments read better than a generated migration DSL.
- *
- *   npm run db:migrate            apply pending migrations
+ *   npm run db:migrate              apply pending migrations
  *   npm run db:migrate -- --status  show what has and has not been applied
  */
 import { createHash } from 'node:crypto';

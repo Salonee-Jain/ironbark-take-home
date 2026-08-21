@@ -26,7 +26,7 @@ export function kgToTonnes(kg: number): number {
   return kg / 1000;
 }
 
-/** Tonnes, no unit suffix — the axis or label carries the unit. */
+/** Tonnes, no unit suffix, the axis or label carries the unit. */
 export function tonnes(kg: number, digits = 0): string {
   return kgToTonnes(kg).toLocaleString('en-AU', {
     minimumFractionDigits: digits,

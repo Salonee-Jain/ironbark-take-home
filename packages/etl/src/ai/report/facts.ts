@@ -3,18 +3,11 @@ import { createHash } from 'node:crypto';
 /**
  * The fact pack: everything the model is allowed to say.
  *
- * The compliance summary is not generated from the database. It is generated
- * from *this* — a fixed list of pre-computed figures and source records, each
- * with an id — and the gate in `citations.ts` refuses any claim that reaches
- * outside it. The model's job is to select, order and explain; it is never the
- * thing that computes a number, because a number a model computed is a number
- * nobody can trace.
- *
- * That inversion is the whole design. Classification (step 7) had a natural
- * anchor: the source description, which a quote must appear in verbatim. A
- * narrative summary has no such text to quote, so the anchor has to be
- * manufactured — hence a closed set of facts with stable ids, assembled in SQL
- * before the model is called.
+ * The summary is generated from this fixed list of pre-computed figures and
+ * source records, not from the database, and the gate in citations.ts refuses
+ * any claim that reaches outside it. The model selects, orders and explains. It
+ * never computes a number, because a number a model computed is a number nobody
+ * can trace.
  */
 
 export type ReportFact = {
@@ -34,22 +27,17 @@ export type ReportFact = {
   unit: string | null;
   /** Which view, table or file the value came from. Shown next to the chip. */
   source: string;
-  /** Free text a claim may also draw numbers from — a description, a rationale. */
+  /** Free text a claim may also draw numbers from, a description, a rationale. */
   detail: string | null;
 };
 
 /**
- * A stable fingerprint of the pack.
+ * A stable fingerprint of the pack, used to tell whether a stored report still
+ * describes the data, and to decide whether the committed cache file may be
+ * served to this dataset at all.
  *
- * Two uses, both about not showing a reader a report that no longer describes
- * their data. A stored report records the digest it was generated against, so
- * the API can tell whether the underlying figures have moved since; and the
- * committed cache file is only served to a dataset whose facts reproduce
- * exactly — which is how a reviewer with no API key gets the demo narrative
- * while a company that uploaded its own export correctly gets none.
- *
- * Order-sensitive on purpose: the builders emit facts in a fixed order, and a
- * pack that reordered would be a different prompt.
+ * Order-sensitive on purpose: the pack is part of a prompt, and a reordered pack
+ * is a different prompt.
  */
 export function factDigest(facts: ReportFact[]): string {
   const canonical = facts.map((fact) => [
@@ -79,13 +67,9 @@ export function renderValue(fact: ReportFact): string {
 }
 
 /**
- * Grouping separators are deliberately absent.
- *
- * The model is told to copy figures exactly as given, and the gate parses what
- * it wrote back into a number. Commas survive that round trip fine, but they
- * also invite the model to "tidy" 10153109.86 into 10.15 million, which the
- * gate then strips as unsupported. Plain digits make the instruction easy to
- * obey, and the frontend does its own formatting anyway.
+ * Grouping separators are deliberately absent. Commas survive the round trip,
+ * but they invite the model to "tidy" 10153109.86 into 10.15 million, which the
+ * gate then strips. The frontend does its own formatting anyway.
  */
 function formatNumber(value: number): string {
   return Number.isInteger(value) ? String(value) : String(round2(value));

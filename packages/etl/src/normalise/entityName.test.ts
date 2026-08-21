@@ -71,7 +71,7 @@ describe('levenshtein', () => {
 
 describe('compareEntities', () => {
   it('merges on a shared ABN, whatever the names look like', () => {
-    // The client's own assertion that these are one entity — stronger than any
+    // The client's own assertion that these are one entity, stronger than any
     // string handling of ours, and independent of it.
     const match = compareEntities(
       { name: 'Blackwood Heavy Maintenance', abn: '11222333444' },

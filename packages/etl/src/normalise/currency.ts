@@ -1,12 +1,9 @@
 import { err, ok, type Result } from './result.js';
 
 /**
- * Currency normalisation.
- *
- * The cost column mixes `"$182,946.64"` with `132182.58`, and the one credit
- * note is written `"$-23,375.00"` — the sign sits *inside* the currency symbol,
- * which is the kind of thing a naive `parseFloat` after stripping `$` gets
- * right by accident and a stricter parser gets wrong by rejecting.
+ * Currency normalisation. The cost column mixes `"$182,946.64"` with
+ * `132182.58`, and the credit note is written `"$-23,375.00"`, with the sign
+ * inside the currency symbol.
  */
 
 const CURRENCY_PATTERN = /^-?\$?-?[\d,]+(\.\d+)?$/;

@@ -2,25 +2,19 @@ import { isOutlier, median } from '@ironbark/shared';
 import * as repository from '../repositories/correlation.repository.js';
 
 /**
- * Cross-dataset correlation: finding the month where three datasets tell one story.
+ * Cross-dataset correlation: finding the month where three datasets tell one
+ * story.
  *
- * Everything here is *detected*, not hard-coded. No month, meter or incident ID
- * appears as a literal. That is the difference between a demo that knows the
- * answer and an analysis that would find the same shape in next year's export —
- * and it is the honest way to present a finding, because a hard-coded month
- * proves only that someone read the data once.
- *
- * The detection uses the same robust outlier test as the ETL's anomaly rules, so
- * the dashboard cannot narrate an event that the data-quality report did not
- * flag.
- *
- * Everything the analysis assumes is returned in the payload rather than
- * embedded in the prose, so the UI shows the reasoning and not just the number.
+ * Everything here is detected, not hard-coded. No month, meter or incident id
+ * appears as a literal, so the same shape would be found in next year's export.
+ * Detection uses the same outlier test as the ETL's anomaly rules, so the
+ * dashboard cannot narrate an event the data-quality report did not flag, and
+ * every assumption is returned in the payload rather than buried in prose.
  */
 
 type Series = { month: string; value: number }[];
 
-/** Median of the series with one month held out — the "normal month" baseline. */
+/** Median of the series with one month held out, the "normal month" baseline. */
 function baselineExcluding(series: Series, month: string): number {
   return median(
     series.filter((point) => point.month !== month).map((point) => point.value),
@@ -73,7 +67,7 @@ export async function getOutageAnalysis(companyId: number) {
   }));
 
   // Months with no fuel at all are excluded from the fuel baseline. November
-  // 2025 has no invoices — a known paperwork gap, flagged by FUEL-MONTH-GAP-01 —
+  // 2025 has no invoices, a known paperwork gap, flagged by FUEL-MONTH-GAP-01, 
   // and a baseline that averaged in a month of zero would understate "normal"
   // and overstate how unusual the outage month looks.
   const fuel: Series = fuelRows
@@ -150,16 +144,9 @@ export async function getOutageAnalysis(companyId: number) {
   };
   const baselineTotal = baseline.scope1 + baseline.scope2;
 
-  // --- the counterfactual ----------------------------------------------------
-  //
-  // Not a forecast. It answers one narrow question — what would this month have
-  // emitted had the grid held and the site not had to substitute diesel — by
-  // costing a normal month's activity at the normal factors.
-  //
-  // The assumption is stated in the payload because it is doing real work: it
-  // supposes the site would otherwise have run at its usual level. If production
-  // was down that month for an unrelated reason, this overstates the gap. The
-  // API says so rather than letting the UI present it as a measurement.
+  // The counterfactual. Not a forecast: it costs a normal month's activity at the
+  // normal factors, to answer what this month would have emitted had the grid
+  // held. The assumption travels in the payload because it is doing real work.
   const counterfactualTotal = round2(baselineTotal);
   const actualTotal = actual?.total ?? 0;
 
@@ -176,7 +163,7 @@ export async function getOutageAnalysis(companyId: number) {
   );
 
   // The candidate root cause: the most severe electrical incident inside the
-  // outage month. Electrical because that is the signal being explained — this
+  // outage month. Electrical because that is the signal being explained, this
   // analysis does not claim to find causes in general, only to check whether the
   // register offers one for *this* anomaly.
   const rootCause =

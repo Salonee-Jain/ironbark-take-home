@@ -18,13 +18,9 @@ import {
 } from './schema.js';
 
 /**
- * One compliance summary, generated and verified.
- *
- * Everything here is vendor-agnostic and database-agnostic: it takes a provider
- * and a fact pack, and returns a report plus an account of what the gate threw
- * away. The caller decides where the facts came from and where the result goes,
- * which is what lets the same code path serve the API endpoint and the CLI that
- * refreshes the committed artefact.
+ * One compliance summary, generated and verified. Vendor-agnostic and
+ * database-agnostic: it takes a provider and a fact pack, which is what lets the
+ * API endpoint and the CLI share one code path.
  */
 
 const OUTPUT = { name: 'compliance_summary', schema: ReportResponseSchema };
@@ -32,13 +28,10 @@ const OUTPUT = { name: 'compliance_summary', schema: ReportResponseSchema };
 export type ReportPeriod = { from: string; to: string; company: string };
 
 /**
- * A rejection, with the round it happened in.
- *
- * Both rounds are reported, including a claim that was rejected first time and
- * successfully reissued second time. That inflates nothing: the sentence really
- * was discarded, and a run that hid its first-round failures would present a
- * clean record of a process that needed correcting. The rejections are the
- * evidence the gate is doing something.
+ * A rejection, with the round it happened in. Both rounds are reported, even a
+ * claim that was rejected first and reissued acceptably second: the sentence
+ * really was discarded, and hiding that would present a cleaner process than the
+ * one that ran.
  */
 export type ReportRejection = ClaimRejection & { round: 1 | 2 };
 
@@ -76,7 +69,7 @@ export function groupBySection(claims: VerifiedClaim[]): ReportSectionOutput[] {
   })).filter((group) => group.claims.length > 0);
 }
 
-/** Same sentence twice — possible once a corrective round reissues a claim. */
+/** Same sentence twice, possible once a corrective round reissues a claim. */
 function dedupe(claims: VerifiedClaim[]): VerifiedClaim[] {
   const seen = new Set<string>();
   return claims.filter((claim) => {
@@ -122,7 +115,7 @@ export async function generateReport(
   }));
 
   // One corrective round, as in classification. The usual failure is a derived
-  // figure — a percentage the model worked out rather than read — and naming the
+  // figure, a percentage the model worked out rather than read, and naming the
   // offending sentence recovers most of them. Claims that fail twice are gone:
   // a second retry would be the model arguing with the gate, and the gate wins.
   if (first.rejected.length > 0) {

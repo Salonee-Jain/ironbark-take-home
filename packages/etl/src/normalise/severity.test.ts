@@ -4,7 +4,7 @@ import { normaliseSeverity } from './severity.js';
 /**
  * The register mixes two severity scales in one column. The mapping is an
  * assumption (Low=1, Medium=2, High=3), so `scale` is returned alongside the
- * value — the loader raises the mixed-scale problem as its own data-quality
+ * value, the loader raises the mixed-scale problem as its own data-quality
  * issue rather than letting the normalisation quietly settle the question.
  */
 

@@ -1,21 +1,11 @@
 /**
  * Supplier name canonicalisation and duplicate detection.
  *
- * Two entities appear twice in `suppliers.csv`, each duplicated a different way,
- * which is why one technique is not enough:
- *
- *   Ironline Fuel Distributors Pty Ltd  /  Ironline Fuel Distributors P/L
- *     — same entity, different legal suffix, and the duplicate has no ABN.
- *       Suffix stripping makes these identical.
- *
- *   Blackwood Heavy Maintenance  /  Blackwood Heavy Maintanence
- *     — same entity, same ABN, one is a typo. Suffix stripping does not help;
- *       edit distance does, and the shared ABN confirms it independently.
- *
- * Getting this wrong costs real money in both directions: unmerged duplicates
- * understate a supplier's true spend (Ironline is $8.94M in the file but $10.15M
- * in reality), and over-eager merging silently combines two genuinely different
- * businesses.
+ * Two entities appear twice, each hidden a different way: a legal-suffix variant
+ * (Pty Ltd against P/L), which suffix stripping catches, and a typo sharing an
+ * ABN (Maintenance against Maintanence), which needs edit distance. Unmerged
+ * duplicates understate a supplier's spend (Ironline is $8.94M in the file and
+ * $10.15M in reality); over-eager merging combines two real businesses.
  */
 
 /** Trailing legal-form tokens that carry no identity. */
@@ -86,7 +76,7 @@ export function levenshtein(a: string, b: string): number {
 
 export type DuplicateMatch = {
   isDuplicate: boolean;
-  /** Why we think so — shown to the user rather than asserted silently. */
+  /** Why we think so, shown to the user rather than asserted silently. */
   reason:
     | 'identical-abn'
     | 'identical-canonical-name'
@@ -96,13 +86,10 @@ export type DuplicateMatch = {
 };
 
 /**
- * Maximum edit distance between two canonical names to call them the same.
- *
- * Two covers the observed defect ('maintenance' vs 'maintanence' is a distance
- * of 2) without reaching far enough to merge distinct suppliers. Verified by
- * running all 105 pairs in this file: the two real duplicates are caught, and
- * the closest pair of genuinely different suppliers is 17 edits apart. The
- * threshold sits in a wide empty gap rather than next to a near-miss.
+ * Two covers the observed defect ('maintenance' against 'maintanence') without
+ * reaching far enough to merge distinct suppliers. Across all 105 pairs in this
+ * file the closest genuinely different pair is 17 edits apart, so the threshold
+ * sits in a wide empty gap rather than next to a near-miss.
  */
 const MAX_EDIT_DISTANCE = 2;
 

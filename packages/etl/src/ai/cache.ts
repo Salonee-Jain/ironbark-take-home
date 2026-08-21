@@ -4,16 +4,9 @@ import { fileURLToPath } from 'node:url';
 import type { GroundedFinding, Rejection } from './grounding.js';
 
 /**
- * The findings cache.
- *
- * Committed to the repository on purpose. It means `npm run etl` produces a
- * complete, working database with no API key, which matters because the brief
- * says they will actually run this — a reviewer should not need to buy
- * inference to see the application work.
- *
- * It also makes the AI output reviewable as a diff. Re-running classification
- * shows exactly what changed between prompt versions, which is otherwise very
- * hard to see.
+ * The findings cache, committed on purpose: `npm run etl` produces a complete
+ * database with no API key, and re-running classification shows exactly what
+ * changed as a diff.
  */
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../../..');

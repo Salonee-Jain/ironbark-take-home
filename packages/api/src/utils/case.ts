@@ -1,15 +1,12 @@
 /**
  * snake_case to camelCase, at the service boundary.
  *
- * Postgres returns `scope1_kg_co2e`; the frontend wants `scope1KgCo2e`. Doing
- * the conversion by hand for every field is a lot of boilerplate whose only
- * failure mode is a silent typo, so it is done once, generically, with the type
- * transformation mirrored at compile time. `row.scope1KgCo2e` is checked; a typo
- * is a build error rather than an `undefined` that renders as a blank tile.
+ * Done once, generically, with the type transformation mirrored at compile time,
+ * so `row.scope1KgCo2e` is checked and a typo is a build error rather than an
+ * undefined that renders as a blank tile.
  *
- * The conversion lives here rather than in SQL aliases because quoted mixed-case
- * identifiers in Postgres are a lasting annoyance for anyone querying by hand,
- * and the database should stay pleasant to use directly.
+ * Here rather than in SQL aliases, because quoted mixed-case identifiers in
+ * Postgres are a lasting annoyance for anyone querying by hand.
  */
 
 export type CamelCase<S extends string> = S extends `${infer Head}_${infer Tail}`

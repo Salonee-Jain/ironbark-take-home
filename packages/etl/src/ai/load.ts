@@ -3,23 +3,14 @@ import { readCache } from './cache.js';
 import { verifyFindings, type SourceIncident } from './grounding.js';
 
 /**
- * Loads cached AI findings into the database.
+ * Loads cached AI findings into the database, at the end of every ETL run: the
+ * load replaces `incidents` and the findings cascade with it.
  *
- * Called at the end of every ETL run, because the load replaces `incidents`
- * and the findings cascade with it — they cite incident IDs, so they cannot
- * outlive a reload of the register.
- *
- * Scoped to one company. The cache was generated against the demo export, so
- * loading it for a tenant that uploaded its own register finds no matching
- * incident IDs and quietly loads nothing — which is the correct outcome, not a
- * silent failure: one client's AI findings must never be attached to another
- * client's incidents on an ID collision.
- *
- * The grounding gate runs *again* here, against the freshly loaded
- * descriptions. The cache is a file in a repository: it can be hand-edited, it
- * can go stale against a re-cleaned register, and a finding that was grounded
- * when it was generated is not necessarily grounded now. Re-verifying costs
- * microseconds and closes the gap.
+ * Scoped to one company, so a tenant that uploaded its own register finds no
+ * matching incident IDs and loads nothing. The grounding gate runs again here
+ * against the freshly loaded descriptions, because a cache is a file in a
+ * repository and a finding grounded when generated is not necessarily grounded
+ * now.
  */
 
 export type AiLoadResult = {

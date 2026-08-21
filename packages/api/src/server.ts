@@ -16,44 +16,23 @@ import { registerRoutes } from './routes/index.js';
 /**
  * Composition root.
  *
- * Layering, outermost in:
+ * Layering, outermost in: routes hold the path, the schema and one service call;
+ * services hold the business rules; repositories hold every SQL statement and
+ * are the only thing that touches the pool; middlewares hold errors, 404s and
+ * timing. There is no controller layer, because for read-only endpoints it
+ * would only forward arguments.
  *
- *   routes/        path, validation schema, and the service call behind it.
- *                  The handler is a single expression mapping request onto a
- *                  service argument; anything more belongs in the service.
- *   services/      business rules, shaping, and the judgements that are not
- *                  the database's to make.
- *   repositories/  every SQL statement, and the only place that touches the
- *                  connection pool.
- *   middlewares/   cross-cutting concerns: errors, 404s, timing.
+ * Tenancy: every route except /health, /docs and /api/auth/* runs behind
+ * app.authenticate and takes its company from the verified session cookie.
  *
- * There is still no controller layer. For read-only endpoints a controller had
- * nothing to do but forward its arguments to a service, and a file of functions
- * that only forward arguments is the ceremony that gives layered architecture a
- * bad name. The exception this file predicted has since arrived —
- * `uploads.routes.ts` does real request handling: multipart parts, a role per
- * field, an owner-only guard. It does that work in the route rather than
- * growing a controller layer for one endpoint.
- *
- * **Tenancy.** Every route except `/health`, `/docs` and `/api/auth/*` runs
- * behind `app.authenticate`, and reads its company from the verified session
- * cookie. No endpoint accepts a company identifier from the caller.
- *
- * The seam that genuinely earns its place is the repository. Emissions
- * arithmetic lives in SQL views precisely so it is reviewable, which makes the
- * queries the part most worth isolating — they can be read as a set, and a
- * service can be tested against a stub without a database.
- *
- * Built without listening so the step 8 integration tests can drive it through
- * app.inject(): no port, no socket, no teardown races.
+ * Built without listening so the integration tests can drive it through
+ * app.inject().
  */
+
 /**
- * Origins allowed to send credentialed requests.
- *
- * The Vite dev server by default; anything else has to be named explicitly in
- * CORS_ORIGINS. Reflecting the caller's own Origin — the previous `origin: true`
- * — stops being merely permissive once cookies are involved and becomes a way
- * for any site to act as a signed-in user.
+ * Origins allowed to send credentialed requests: the Vite dev server by default,
+ * anything else named in CORS_ORIGINS. Reflecting the caller's own Origin stops
+ * being merely permissive once cookies are involved.
  */
 function corsOrigins(): string[] {
   const configured = process.env['CORS_ORIGINS'];
@@ -102,7 +81,7 @@ export function buildServer(
   });
 
   // Credentials must be allowed for the session cookie to travel, and `origin:
-  // true` reflects whatever Origin the caller sent — which, combined with
+  // true` reflects whatever Origin the caller sent, which, combined with
   // credentials, would let any site on the internet make authenticated requests
   // on a signed-in user's behalf. The allowlist is the fix. In development the
   // frontend goes through Vite's proxy and is same-origin anyway, so this only

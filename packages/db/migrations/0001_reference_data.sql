@@ -5,15 +5,10 @@
 -- data-quality issue when it meets a site area or incident code that is not in
 -- these tables, instead of silently widening the taxonomy.
 
--- ---------------------------------------------------------------------------
--- Site areas
---
--- `Site Area` in fuel_deliveries.csv and `location` in incident_register.csv
--- draw on the same vocabulary, which is what makes cross-dataset analysis
--- possible. The vocabulary is not clean: two of the six values are fleets
--- rather than places, so "where did this happen" and "which fleet burned this"
--- are conflated in one column. `category` lets the UI group honestly.
--- ---------------------------------------------------------------------------
+-- Site areas. `Site Area` in the fuel file and `location` in the incident
+-- register draw on the same vocabulary, which is what makes cross-dataset
+-- analysis possible. It is not clean: two of the six values are fleets rather
+-- than places, so `category` lets the UI group honestly.
 create table site_areas (
     id       integer generated always as identity primary key,
     name     text not null unique,
@@ -29,14 +24,10 @@ insert into site_areas (name, category, notes) values
     ('Haul Fleet',           'fleet',       'A fleet, not a geographic area. The source column mixes the two.'),
     ('Light Vehicles',       'fleet',       'A fleet, not a geographic area. The source column mixes the two.');
 
--- ---------------------------------------------------------------------------
--- Incident type codes
---
--- The source register ships bare three-letter codes with no code table. These
--- labels are inferred from the free-text descriptions filed under each code and
--- are marked as such: a reviewer should be able to see which parts of this
--- schema are asserted by the client and which are our reading of the data.
--- ---------------------------------------------------------------------------
+-- Incident type codes. The register ships bare three-letter codes with no code
+-- table, so these labels are inferred from the descriptions filed under each and
+-- marked as such: a reviewer should see which parts are the client's and which
+-- are our reading.
 create table incident_types (
     code        text primary key,
     label       text not null,
@@ -63,20 +54,12 @@ create table meters (
     last_period  date
 );
 
--- ---------------------------------------------------------------------------
--- Emission factors
+-- Emission factors, loaded from emission_factors.csv, which the brief says to
+-- trust as-is. `factor_key` is ours: the source identifies an activity by a prose
+-- string, and joining fact tables on prose is fragile.
 --
--- Loaded from emission_factors.csv, which the brief says to trust as-is.
---
--- `factor_key` is ours: the source identifies an activity by a prose string
--- ('Diesel combustion (stationary & transport)'), and joining fact tables on
--- prose is fragile. The ETL maps each activity to a stable key.
---
--- Limitation worth stating: real NGER factors are scoped to a financial year,
--- and this file carries no validity period. A single factor is therefore
--- applied across all 18 months, which is fine for the exercise but would not
--- survive a real audit spanning a factor revision.
--- ---------------------------------------------------------------------------
+-- Worth stating: real NGER factors are scoped to a financial year and this file
+-- carries no validity period, so one factor is applied across all 18 months.
 create table emission_factors (
     factor_key       text primary key,
     activity         text not null unique,
