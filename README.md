@@ -4,7 +4,7 @@ Emissions, safety and data-quality intelligence over 18 months of operational da
 fictional Queensland open-cut mine.
 
 Built for the ESGAgent.ai take-home challenge — see [`ASSIGNMENT.md`](./ASSIGNMENT.md) for
-the brief and [`PLAN.md`](./PLAN.md) for the build plan.
+the brief.
 
 ## Layout
 
