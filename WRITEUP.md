@@ -72,9 +72,24 @@ The static Vue build is served directly and the whole API runs as one function u
 database. The API is bundled at build time, because the platform compiles the function's own
 TypeScript but ships workspace packages as raw `.ts`, which Node cannot import at runtime.
 
-**No AI key is set on the server.** Both AI outputs are committed and served from the
-repository, so the hosted demo cannot spend money. Generating a new summary is the one paid
-path, it is owner-only, and it answers with a clear 503 when no key is configured.
+**No AI key is set on the server, and that is deliberate twice over.** I was working with a
+small amount of API credit, and a paid endpoint sitting on a public URL is the one part of
+this that could quietly run up a bill. So the hosted app has no key at all: both AI outputs
+are generated locally, committed to the repository, and served from there.
+
+What that means for anyone using the live demo:
+
+- Everything the AI layer produced is visible: the classifications, the psychosocial
+  hazards, the severity mismatches, and the cited summary with its fact pack.
+- The **Generate summary** button is there for a workspace owner, but on the hosted app it
+  answers 503 with an explanation, because no key is configured. Run the project locally with
+  a key in `.env` and the same button calls the model for real.
+- Nothing a visitor does can spend money.
+
+Total spend across the whole build was two classification runs and two summary runs, about
+44,000 input and 19,000 output tokens. Well under the budget the brief allows, and the reason
+it stayed there is that the outputs are artefacts rather than something re-bought on every
+page load.
 
 ### Layout
 
@@ -460,9 +475,9 @@ Classification had a natural anchor: the source description, which a quote has t
 appear in word for word. A narrative has no text to quote, so the anchor had to be
 manufactured. The order is inverted instead:
 
-1. The API assembles a **fact pack** first: about 90 pre-computed figures and source
-   records, each with an id, built from the same repositories the dashboard reads, so
-   the prose cannot disagree with the chart beside it.
+1. The API assembles a **fact pack** first: 108 pre-computed figures and source records,
+   each with an id, built from the same repositories the dashboard reads, so the prose
+   cannot disagree with the chart beside it.
 2. The model is given that closed set and told to select, order and explain. It is
    told not to calculate: no sums, no ratios, no unit conversions. Both kilograms and
    tonnes are in the pack so it never needs to convert one into the other.
@@ -495,12 +510,15 @@ is traceable. It cannot certify that the interpretation is sound: "Scope 1 rose
 traceability is what a machine can check. Judgement stays with the reader, which is
 why every claim is rendered with its citations visible rather than footnoted away.
 
-**On the run: 21 claims, one rejected.** The rejection was an unsupported number in a
-counterfactual sentence, and the corrective round reissued it citing the fact it
-needed. The summary opened by refusing to state the headline total without its
-caveat, that it rests on 20 corrected activity records and a month with no fuel
-invoices, which is the behaviour the prompt asks for and the one a compliance reader
-needs.
+**On the committed run: 19 claims, none rejected.** The summary opens by refusing to state
+the headline total without its caveat, that it rests on 20 corrected activity records and a
+month with no fuel invoices, which is the behaviour the prompt asks for and the one a
+compliance reader needs.
+
+An earlier run is the more interesting one. It produced 21 claims, the gate rejected one for
+stating a number the cited facts did not contain, and the corrective round reissued it
+citing the fact it needed. That is the gate doing exactly the job it exists for, on the
+first real thing it was pointed at.
 
 **And it caught a bug in my own fact pack.** Its watch list reported that diesel and
 petrol both showed 0 litres beside 143 loaded invoices and 22,052 tonnes of Scope 1,

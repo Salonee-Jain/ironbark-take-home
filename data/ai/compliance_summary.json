@@ -7,7 +7,7 @@
     "to": "2026-06",
     "company": "Ironbark Ridge Resources"
   },
-  "factDigest": "5763166090e6f2f7",
+  "factDigest": "7720ff312b7d89a1",
   "facts": [
     {
       "id": "PERIOD-RANGE",
@@ -282,20 +282,20 @@
     {
       "id": "ACTIVITY-DIESEL-L",
       "kind": "metric",
-      "label": "Diesel delivered over the period",
-      "value": 0,
-      "unit": "litres",
+      "label": "Diesel combustion (stationary & transport) delivered over the period",
+      "value": 8102791,
+      "unit": "L",
       "source": "fuel_deliveries",
-      "detail": "Converted at 2.70 kg CO2e per litre. Credit notes are netted off."
+      "detail": "Across 126 invoices, converted at 2.7 kg CO2e per L. Credit notes are netted off; duplicate invoices are excluded."
     },
     {
-      "id": "ACTIVITY-PETROL-L",
+      "id": "ACTIVITY-PETROL-ULP-L",
       "kind": "metric",
-      "label": "Petrol delivered over the period",
-      "value": 0,
-      "unit": "litres",
+      "label": "Petrol (ULP) combustion delivered over the period",
+      "value": 75731,
+      "unit": "L",
       "source": "fuel_deliveries",
-      "detail": "Converted at 2.31 kg CO2e per litre."
+      "detail": "Across 17 invoices, converted at 2.31 kg CO2e per L. Credit notes are netted off; duplicate invoices are excluded."
     },
     {
       "id": "ACTIVITY-GRID-KWH",
@@ -314,15 +314,6 @@
       "unit": "meters",
       "source": "meters",
       "detail": "108 monthly readings across the period"
-    },
-    {
-      "id": "ACTIVITY-FUEL-DELIVERIES",
-      "kind": "metric",
-      "label": "Fuel delivery invoices loaded",
-      "value": 143,
-      "unit": "invoices",
-      "source": "fuel_deliveries",
-      "detail": null
     },
     {
       "id": "INCIDENTS-TOTAL",
@@ -822,11 +813,11 @@
     {
       "id": "FUEL-CREDIT-01",
       "kind": "record",
-      "label": "Negative quantity — appears to be a credit note",
+      "label": "Negative quantity, appears to be a credit note",
       "value": 1,
       "unit": null,
       "source": "fuel_deliveries.csv",
-      "detail": "1 finding(s), severity warning, action flagged. INV-41777 records -12,500 L against -$23,375.00, and its invoice number sits outside the 40xxx block used by every other row. That reads as a credit note — fuel invoiced then reversed — not as corruption. It is loaded with is_credit_note=true so it nets off the totals, because deleting it would overstate consumption while \"correcting\" the sign would double-count it. Flagged for the client to confirm."
+      "detail": "1 finding(s), severity warning, action flagged. INV-41777 records -12,500 L against -$23,375.00, and its invoice number sits outside the 40xxx block used by every other row. That reads as a credit note, fuel invoiced then reversed, rather than corruption. It is loaded with is_credit_note=true so it nets off the totals, because deleting it would overstate consumption while \"correcting\" the sign would double-count it. Flagged for the client to confirm."
     },
     {
       "id": "FUEL-DATE-PRECISION-01",
@@ -871,7 +862,7 @@
       "value": 1,
       "unit": null,
       "source": "fuel_deliveries.csv",
-      "detail": "1 finding(s), severity error, action flagged. November 2025 contains no fuel invoices at all, between an October with 8 and a December with 7. The site was plainly operating — the meters record a full month of electricity — so this is missing paperwork, not a shutdown. Scope 1 is understated for that month by roughly a month of diesel, and nothing else in the file draws attention to it: a gap is invisible unless you go looking for the absence of rows. Flagged rather than interpolated. Estimating the missing volume would put an invented number into a compliance report."
+      "detail": "1 finding(s), severity error, action flagged. November 2025 contains no fuel invoices at all, between an October with 8 and a December with 7. The site was plainly operating, since the meters record a full month of electricity, so this is missing paperwork, not a shutdown. Scope 1 is understated for that month by roughly a month of diesel, and nothing else in the file draws attention to it: a gap is invisible unless you go looking for the absence of rows. Flagged rather than interpolated. Estimating the missing volume would put an invented number into a compliance report."
     },
     {
       "id": "FUEL-SITE-FLEET-01",
@@ -889,7 +880,7 @@
       "value": 11,
       "unit": null,
       "source": "fuel_deliveries.csv",
-      "detail": "11 finding(s), severity error, action fixed. Eleven rows record kL against a column whose other 139 rows are litres. Converted x1000, with the original value and unit retained. Confirmed independently by cost: after conversion these rows imply $1.73-$1.93/L, inside the range set by every other delivery; before conversion they imply roughly $1,800/L. Left uncorrected this understates Scope 1 by about 750,000 litres — an error in the direction nobody questions."
+      "detail": "11 finding(s), severity error, action fixed. Eleven rows record kL against a column whose other 139 rows are litres. Converted x1000, with the original value and unit retained. Confirmed independently by cost: after conversion these rows imply $1.73-$1.93/L, inside the range set by every other delivery; before conversion they imply roughly $1,800/L. Left uncorrected this understates Scope 1 by about 750,000 litres, an error in the direction nobody questions."
     },
     {
       "id": "FUEL-VOLUME-SPIKE-01",
@@ -898,7 +889,7 @@
       "value": 1,
       "unit": null,
       "source": "fuel_deliveries.csv",
-      "detail": "1 finding(s), severity info, action flagged. Outliers are found with a modified z-score against the median absolute deviation, not a hand-picked multiple of the median. A fixed multiple has to be tuned against the answer you already expect, and would have missed this dataset: the one anomalous month is 1.49x the median, under any round threshold you would have chosen in advance, while sitting about eight deviations clear of a series that otherwise holds between 0.85x and 1.14x. Not a defect — the pipeline noticing something real. Read with ELEC-CONSUMPTION-DROP-01 for the same month."
+      "detail": "1 finding(s), severity info, action flagged. Outliers are found with a modified z-score against the median absolute deviation, not a hand-picked multiple of the median. A fixed multiple has to be tuned against the answer you already expect, and would have missed this dataset: the one anomalous month is 1.49x the median, under any round threshold you would have chosen in advance, while sitting about eight deviations clear of a series that otherwise holds between 0.85x and 1.14x. Not a defect, but the pipeline noticing something real. Read with ELEC-CONSUMPTION-DROP-01 for the same month."
     },
     {
       "id": "INC-DESC-REUSED-01",
@@ -907,7 +898,7 @@
       "value": 9,
       "unit": null,
       "source": "incident_register.csv",
-      "detail": "9 finding(s), severity info, action flagged. Several descriptions appear word for word on multiple incidents at different dates and locations. Two very different explanations: copy-paste in the register, or a hazard genuinely recurring without being addressed. Flagged rather than deduplicated, because the second reading is a finding in its own right — one description here repeats five times across four locations."
+      "detail": "9 finding(s), severity info, action flagged. Several descriptions appear word for word on multiple incidents at different dates and locations. Two very different explanations: copy-paste in the register, or a hazard genuinely recurring without being addressed. Flagged rather than deduplicated, because the second reading is a finding in its own right: one description here repeats five times across four locations."
     },
     {
       "id": "INC-DUP-ID-01",
@@ -934,7 +925,7 @@
       "value": 3,
       "unit": null,
       "source": "incident_register.csv",
-      "detail": "3 finding(s), severity warning, action flagged. Deliberately narrow: fires only when the text names fixed infrastructure (crusher, wash plant, CHPP, ROM pad, thickener) while the location column holds a mobile fleet. A dust exceedance at the crusher cannot have happened \"at\" the Haul Fleet. Not corrected — the location column and the description disagree, and the export gives no way to tell which one the client trusts."
+      "detail": "3 finding(s), severity warning, action flagged. Deliberately narrow: fires only when the text names fixed infrastructure (crusher, wash plant, CHPP, ROM pad, thickener) while the location column holds a mobile fleet. A dust exceedance at the crusher cannot have happened \"at\" the Haul Fleet. Not corrected, because the location column and the description disagree, and the export gives no way to tell which one the client trusts."
     },
     {
       "id": "INC-SEV-MAPPED-01",
@@ -961,7 +952,7 @@
       "value": 1,
       "unit": null,
       "source": "suppliers.csv",
-      "detail": "1 finding(s), severity info, action flagged. Twelve of the fifteen suppliers carry a correctly formed 11-digit ABN, and all twelve fail the modulus-89 checksum. When a rule fails for 100% of the rows it applies to, the honest conclusion is that the source is systematically different from what the rule assumes — synthetic or masked values — not that the client has twelve separate problems. Reported once at file level so it does not bury the one genuinely malformed ABN, and no supplier is marked invalid on this basis alone."
+      "detail": "1 finding(s), severity info, action flagged. Twelve of the fifteen suppliers carry a correctly formed 11-digit ABN, and all twelve fail the modulus-89 checksum. When a rule fails for 100% of the rows it applies to, the honest conclusion is that the source is systematically different from what the rule assumes, most likely synthetic or masked values, not that the client has twelve separate problems. Reported once at file level so it does not bury the one genuinely malformed ABN, and no supplier is marked invalid on this basis alone."
     },
     {
       "id": "SUP-ABN-FORM-01",
@@ -988,7 +979,7 @@
       "value": 2,
       "unit": null,
       "source": "suppliers.csv",
-      "detail": "2 finding(s), severity error, action fixed. Two entities are listed twice: once as a legal-suffix variant (Pty Ltd / P-L) and once as a spelling error sharing an ABN (Maintenance / Maintanence). Both rows are kept and the duplicate points at its primary, rather than being merged away — the client ledger contains both, and reconciling against it later needs both visible. Unmerged, Ironline reads as $8.94M against a true $10.15M, which is the difference between their largest supplier and their second largest."
+      "detail": "2 finding(s), severity error, action fixed. Two entities are listed twice: once as a legal-suffix variant (Pty Ltd / P-L) and once as a spelling error sharing an ABN (Maintenance / Maintanence). Both rows are kept and the duplicate points at its primary, rather than being merged away. The client ledger contains both, and reconciling against it later needs both visible. Unmerged, Ironline reads as $8.94M against a true $10.15M, which is the difference between their largest supplier and their second largest."
     }
   ],
   "sections": [
@@ -996,12 +987,15 @@
       "section": "Headline",
       "claims": [
         {
-          "text": "For January 2025 to June 2026, reported Scope 1 plus Scope 2 emissions were 46929.8 t CO2e, but that position rests on 20 corrected activity records and November 2025 has no fuel invoices, with Scope 1 understated for that month.",
+          "text": "For January 2025 to June 2026, the reporting position is 46929.8 t CO2e, but it rests on 20 corrected source records and March 2026 is not a normal month: total emissions were -10.3 % against the median month while Scope 1 was 51.6 % and Scope 2 was -64.5 %.",
           "citations": [
             "PERIOD-RANGE",
             "EMISSIONS-TOTAL-T",
             "EMISSIONS-CORRECTED-RECORDS",
-            "FUEL-MONTH-GAP-01"
+            "OUTAGE-MONTH",
+            "OUTAGE-TOTAL-CHANGE-PCT",
+            "OUTAGE-SCOPE1-CHANGE-PCT",
+            "OUTAGE-SCOPE2-CHANGE-PCT"
           ]
         }
       ]
@@ -1010,50 +1004,43 @@
       "section": "Emissions",
       "claims": [
         {
-          "text": "Across 18 months, total emissions were 46929.8 t CO2e, made up of Scope 1 emissions of 22052.5 t CO2e and Scope 2 emissions of 24877.4 t CO2e; Scope 1 was 47 % of the period total. The period totals include 20 corrected activity records, so the reported split is correction-dependent.",
+          "text": "The loaded export covers 18 months and reports 46929.8 t CO2e for Scope 1 plus Scope 2; those totals include 20 activity records that carry a data-quality error and were corrected in flight.",
           "citations": [
             "PERIOD-MONTHS",
             "EMISSIONS-TOTAL-T",
-            "EMISSIONS-SCOPE1-T",
-            "EMISSIONS-SCOPE2-T",
-            "EMISSIONS-SCOPE1-SHARE-PCT",
             "EMISSIONS-CORRECTED-RECORDS"
           ]
         },
         {
-          "text": "FY2025 emissions were 15614.6 t CO2e for 6 months of data and are an incomplete financial year, while FY2026 emissions were 31315.2 t CO2e for 12 months of data and are a complete financial year. The pack states the FY2025 figure is not comparable with a full one.",
+          "text": "Scope 1 emissions were 22052.5 t CO2e and Scope 2 emissions were 24877.4 t CO2e; Scope 1 accounts for 47 % of the period total.",
+          "citations": [
+            "EMISSIONS-SCOPE1-T",
+            "EMISSIONS-SCOPE2-T",
+            "EMISSIONS-SCOPE1-SHARE-PCT"
+          ]
+        },
+        {
+          "text": "FY2025 is 15614.6 t CO2e on 6 months of data and is not comparable with FY2026, which is 31315.2 t CO2e on 12 months of data.",
           "citations": [
             "FY2025-TOTAL-T",
             "FY2026-TOTAL-T"
           ]
         },
         {
-          "text": "May 2026 was the highest-emitting month at 2879.1 t CO2e, while November 2025 was the lowest-emitting month at 1445.5 t CO2e. November 2025 recorded Scope 1 at 0 t CO2e, Scope 2 at 1445.5 t CO2e, 6 contributing records and 1 corrected record, and the fuel file has no invoices for that month.",
+          "text": "May 2026 was the highest-emitting month at 2879.1 t CO2e, while November 2025 was the lowest at 1445.5 t CO2e with Scope 1 recorded as 0 t and 1 corrected contributing record.",
           "citations": [
             "EMISSIONS-PEAK-MONTH",
             "EMISSIONS-LOWEST-MONTH",
-            "MONTH-2025-11",
-            "FUEL-MONTH-GAP-01"
+            "MONTH-2025-11"
           ]
         },
         {
-          "text": "March 2026 was the outage month: total emissions were 2401 t CO2e, with Scope 1 at 1893.9 t CO2e, Scope 2 at 507.1 t CO2e and Scope 1 share at 78.9 %. Against the median month, grid consumption was -64.5 %, fuel volume was 51.5 %, Scope 1 was 51.6 %, Scope 2 was -64.5 % and total emissions were -10.3 %, with the incident register recording a regional substation failure and backup diesel generators running for approximately three weeks.",
+          "text": "March 2026 is the main month behaving differently from the rest: grid consumption fell -64.5 %, fuel volume rose 51.5 %, Scope 1 share reached 78.9 %, and the month’s reported total was 2401 t CO2e.",
           "citations": [
-            "MONTH-2026-03",
             "OUTAGE-MONTH",
             "OUTAGE-GRID-CHANGE-PCT",
             "OUTAGE-FUEL-CHANGE-PCT",
-            "OUTAGE-SCOPE1-CHANGE-PCT",
-            "OUTAGE-SCOPE2-CHANGE-PCT",
-            "OUTAGE-TOTAL-CHANGE-PCT",
             "OUTAGE-SCOPE1-SHARE-PCT",
-            "INC-2026-131"
-          ]
-        },
-        {
-          "text": "For March 2026, the normal-supply comparison was 2677 t CO2e, while reported total emissions were 2401 t CO2e. The pack states this is a comparison against normal supply, not a forecast.",
-          "citations": [
-            "OUTAGE-COUNTERFACTUAL-T",
             "MONTH-2026-03"
           ]
         }
@@ -1063,31 +1050,26 @@
       "section": "Safety",
       "claims": [
         {
-          "text": "The register contains 42 incidents for the period: 25 at normalised severity 1, 15 at normalised severity 2 and 2 at normalised severity 3. The AI layer classified 42 incident descriptions and found 14 incidents where the description does not support the recorded severity.",
+          "text": "The incident register contains 42 incidents, with 25 at normalised severity 1, 15 at normalised severity 2, and 2 at normalised severity 3.",
           "citations": [
             "INCIDENTS-TOTAL",
             "INCIDENTS-SEVERITY-1",
             "INCIDENTS-SEVERITY-2",
-            "INCIDENTS-SEVERITY-3",
-            "AI-FINDINGS-TOTAL",
-            "AI-SEVERITY-MISMATCH-COUNT"
+            "INCIDENTS-SEVERITY-3"
           ]
         },
         {
-          "text": "Vehicle & mobile equipment was the largest coded incident group at 13 incidents, followed by Equipment & plant at 8, Environmental at 7, Dust & air quality at 6, Other / uncategorised at 4, Slip, trip & fall at 3 and Electrical & power at 1.",
+          "text": "Vehicle and mobile equipment is the largest coded incident group at 13 incidents, followed by equipment and plant at 8 incidents and environmental at 7 incidents.",
           "citations": [
             "INCIDENTS-TYPE-VEH",
             "INCIDENTS-TYPE-EQP",
-            "INCIDENTS-TYPE-ENV",
-            "INCIDENTS-TYPE-DUS",
-            "INCIDENTS-TYPE-OTH",
-            "INCIDENTS-TYPE-SLP",
-            "INCIDENTS-TYPE-ELE"
+            "INCIDENTS-TYPE-ENV"
           ]
         },
         {
-          "text": "The AI layer identified 4 psychosocial hazards: INC-2025-127, INC-2025-152, INC-2026-109 and INC-2026-134. INC-2025-127 and INC-2026-109 were recorded at severity 1 but assessed from the text as 3, and INC-2026-134 links fatigue to extended shifts covering generator operations and manual restarts during the March power outage.",
+          "text": "The AI layer classified 42 incident descriptions and identified 4 psychosocial hazards; the named psychosocial records are INC-2025-127, INC-2025-152, INC-2026-109, and INC-2026-134.",
           "citations": [
+            "AI-FINDINGS-TOTAL",
             "AI-PSYCHOSOCIAL-COUNT",
             "INC-2025-127",
             "INC-2025-152",
@@ -1096,16 +1078,18 @@
           ]
         },
         {
-          "text": "Two severity mismatches understate higher-consequence descriptions: INC-2025-118 was recorded at severity 1 but assessed from the text as 3 after a fractured forearm and surgery, and INC-2025-141 was recorded at severity 1 but assessed from the text as 3 with an LTI recorded.",
+          "text": "The AI layer found 14 incidents where the description does not support the recorded severity, including INC-2025-118, INC-2025-141, INC-2025-127, and INC-2026-109, each recorded at severity 1 and assessed from the text as 3.",
           "citations": [
+            "AI-SEVERITY-MISMATCH-COUNT",
             "INC-2025-118",
-            "INC-2025-141"
+            "INC-2025-141",
+            "INC-2025-127",
+            "INC-2026-109"
           ]
         },
         {
-          "text": "Severity overstatement also appears in the AI findings: INC-2025-008 was recorded at severity 3 but assessed from the text as 2, and INC-2026-131 was recorded at severity 3 but assessed from the text as 2 while also explaining the outage month.",
+          "text": "INC-2026-131 is both the register’s explanation for the outage month and a severity mismatch: it was recorded at severity 3 but assessed from the text as 2, with the description citing a regional substation failure and backup diesel generators running for approximately three weeks.",
           "citations": [
-            "INC-2025-008",
             "INC-2026-131"
           ]
         }
@@ -1115,41 +1099,37 @@
       "section": "Data quality",
       "claims": [
         {
-          "text": "The source files generated 99 data-quality findings across 22 rules: 31 findings at severity error, 42 at warning and 26 at info. The recorded actions were 37 fixed, 55 flagged and 7 rejected.",
+          "text": "The source files raised 99 data-quality findings across 22 rules: 31 findings were errors, 42 were warnings, and 26 were information findings.",
           "citations": [
             "DQ-ISSUES-TOTAL",
             "DQ-RULES-TRIGGERED",
             "DQ-SEVERITY-ERROR",
             "DQ-SEVERITY-WARNING",
-            "DQ-SEVERITY-INFO",
+            "DQ-SEVERITY-INFO"
+          ]
+        },
+        {
+          "text": "Resolution was split between 37 findings fixed, 55 findings flagged for a human, and 7 findings rejected from the analytics tables.",
+          "citations": [
             "DQ-ACTION-FIXED",
             "DQ-ACTION-FLAGGED",
             "DQ-ACTION-REJECTED"
           ]
         },
         {
-          "text": "The emissions totals rest on corrected source values: ELEC-UNIT-SCALE-01 fixed 9 MTR-07 readings by x1000, FUEL-UNIT-KL-01 fixed 11 quantity rows by x1000, and the monthly emissions totals include 20 corrected activity records.",
+          "text": "The emissions totals rest on fixed unit-scale corrections: ELEC-UNIT-SCALE-01 fixed 9 MTR-07 readings by applying x1000, and FUEL-UNIT-KL-01 fixed 11 fuel rows by applying x1000.",
           "citations": [
+            "EMISSIONS-CORRECTED-RECORDS",
             "ELEC-UNIT-SCALE-01",
-            "FUEL-UNIT-KL-01",
-            "EMISSIONS-CORRECTED-RECORDS"
+            "FUEL-UNIT-KL-01"
           ]
         },
         {
-          "text": "Rejected or repaired duplication affects the audit trail: FUEL-DUP-01 rejected 7 exact duplicate invoice copies, INC-DUP-ID-01 fixed 1 incident ID used for more than one incident by adding a suffixed surrogate key, and SUP-DUP-01 fixed 2 supplier duplicate findings while keeping ledger rows visible.",
+          "text": "Some material records were deliberately not corrected: ELEC-CONSUMPTION-DROP-01 was flagged rather than smoothed because the outage was real, FUEL-MONTH-GAP-01 was flagged rather than interpolated, and FUEL-CREDIT-01 was loaded with is_credit_note=true while awaiting client confirmation.",
           "citations": [
-            "FUEL-DUP-01",
-            "INC-DUP-ID-01",
-            "SUP-DUP-01"
-          ]
-        },
-        {
-          "text": "Several material items remain flagged for a human rather than corrected: MTR-06 is absent for all 18 months, November 2025 has no fuel invoices, INV-41777 is loaded as a -12,500 L and -$23,375.00 credit note, and 29 fuel delivery dates state month only.",
-          "citations": [
-            "ELEC-METER-GAP-01",
+            "ELEC-CONSUMPTION-DROP-01",
             "FUEL-MONTH-GAP-01",
-            "FUEL-CREDIT-01",
-            "FUEL-DATE-PRECISION-01"
+            "FUEL-CREDIT-01"
           ]
         }
       ]
@@ -1158,62 +1138,41 @@
       "section": "Watch list",
       "claims": [
         {
-          "text": "Scope 3 is not calculable from this export even though the supplier file reports 13 suppliers and 30399000 AUD of spend, because the provided emission factors are activity-based and there is no spend-based factor.",
-          "citations": [
-            "SCOPE3-STATUS",
-            "SUPPLIERS-COUNT",
-            "SUPPLIERS-SPEND-AUD"
-          ]
-        },
-        {
-          "text": "Emissions intensity is not calculable from this export because there is no production data, including no tonnes moved and no operating hours, so there is no denominator.",
-          "citations": [
-            "INTENSITY-STATUS"
-          ]
-        },
-        {
-          "text": "November 2025 remains a report-changing gap: the monthly total is 1445.5 t CO2e with Scope 1 at 0 t CO2e, and FUEL-MONTH-GAP-01 says Scope 1 is understated for that month because no fuel invoices were recorded.",
+          "text": "November 2025 remains an emissions gap: the month reports 1445.5 t CO2e, Scope 1 is 0 t, and FUEL-MONTH-GAP-01 says there were no fuel invoices for the month inside the reporting period.",
           "citations": [
             "MONTH-2025-11",
             "FUEL-MONTH-GAP-01"
           ]
         },
         {
-          "text": "The fuel activity reconciliation is unresolved: the activity summary reports diesel delivered at 0 litres and petrol delivered at 0 litres, while 143 fuel delivery invoices were loaded and Scope 1 emissions for the period are 22052.5 t CO2e from fuel combustion.",
+          "text": "MTR-06 is absent for all 18 months even though the meter sequence runs MTR-01 to MTR-07; if it represents an unreported load rather than a decommissioned meter, Scope 2 is missing.",
           "citations": [
-            "ACTIVITY-DIESEL-L",
-            "ACTIVITY-PETROL-L",
-            "ACTIVITY-FUEL-DELIVERIES",
-            "EMISSIONS-SCOPE1-T"
+            "ELEC-METER-GAP-01"
           ]
         },
         {
-          "text": "MTR-06 is absent for all 18 months; the pack states this is either a decommissioned meter or an unreported load, and the latter would mean missing Scope 2.",
+          "text": "Scope 3 is not calculable from this export: the supplier file carries 30399000 AUD of spend, but the provided emission factors are activity-based and no spend-based factor is available.",
           "citations": [
-            "ELEC-METER-GAP-01"
+            "SCOPE3-STATUS",
+            "SUPPLIERS-SPEND-AUD"
+          ]
+        },
+        {
+          "text": "Emissions intensity is not calculable from this export because there is no production denominator such as tonnes moved or operating hours.",
+          "citations": [
+            "INTENSITY-STATUS"
           ]
         }
       ]
     }
   ],
-  "rejected": [
-    {
-      "section": "Emissions",
-      "text": "The March 2026 outage counterfactual is 2677 t CO2e compared with the reported total of 2401 t CO2e, and the pack identifies it as a comparison against normal supply rather than a forecast.",
-      "citations": [
-        "OUTAGE-COUNTERFACTUAL-T"
-      ],
-      "reason": "unsupported-number",
-      "detail": "States 2, 2, which do not appear in the cited facts.",
-      "round": 1
-    }
-  ],
-  "claimsAccepted": 20,
-  "claimsRejected": 1,
+  "rejected": [],
+  "claimsAccepted": 19,
+  "claimsRejected": 0,
   "usage": {
-    "inputTokens": 23239,
-    "outputTokens": 6798,
+    "inputTokens": 10476,
+    "outputTokens": 3183,
     "estimatedCostUsd": null
   },
-  "generatedAt": "2026-08-21T05:59:17.683Z"
+  "generatedAt": "2026-08-21T07:24:01.361Z"
 }
