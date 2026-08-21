@@ -274,6 +274,15 @@ hypotheticals:
   exactly that, deliberately and with a comment explaining why. The test failed on
   `'2.7000'` vs `2.7`.
 
+- **A refactor moved a check in front of the thing that made it work.** Adding the
+  provider abstraction, it hoisted the API-key check to the top of the classifier so
+  a missing key fails in the first second rather than after loading the register —
+  sound reasoning, and it broke the command. The `.env` was only ever loaded as a
+  side effect of the first database connection, which now happened *after* the
+  check, so a correctly configured key read as absent. `loadEnv()` is now called
+  explicitly. Nothing type-checked differently and no test covered it; it surfaced
+  the first time the command was actually run.
+
 - **It proposed emission factors from memory when asked to fill a gap.** The brief
   says use the supplied file as-is. Recalled NGER-style factors are exactly the kind
   of confident, unsourced number this project exists to prevent. Rejected; the
@@ -322,13 +331,69 @@ quotes correct except for punctuation, quotes correct except for case, and quote
 lifted from a *different* incident in the same batch — the realistic failure when
 eight records share one context window. All are rejected.
 
-> **Status:** the classifier and its gate are implemented and tested, and the
-> provider layer runs against either Anthropic or OpenAI. Classification has not yet
-> been executed against a live key, so `data/ai/incident_findings.json` is not
-> populated and this section makes no claims about what the model actually found.
-> The application runs fully without it; the safety panel shows AI columns as empty
-> rather than fabricating them. This is the one piece of the build that is described
-> rather than demonstrated, and it is called out here rather than glossed.
+### What it actually found
+
+Run against **`gpt-5.5`**, 42 incidents in 6 batches, 7,940 input / 6,379 output
+tokens. The cache is committed at `data/ai/incident_findings.json`.
+
+**Four psychosocial hazards, every one of them coded `OTH` in the register.** This
+is the finding the layer exists for — the register has no psychosocial category, so
+these were filed in the same bucket as everything else that did not fit:
+
+| Incident | Recorded | Assessed | Subtype | Evidence quote |
+|---|---:|---:|---|---|
+| `INC-2025-127` | 1 | **3** | Bullying or harassment | *"repeated verbal abuse from supervisor over several weeks, feeling anxious before shift."* |
+| `INC-2026-109` | 1 | **3** | Role conflict / lack of clarity | *"exclusion from toolbox talks and rostering decisions after raising a safety concern, describes ongoing stress and poor sleep."* |
+| `INC-2025-152` | 2 | 2 | Excessive workload or fatigue | *"feeling overwhelmed by sustained overtime and understaffing on night shift"* |
+| `INC-2026-134` | 2 | 2 | Excessive workload or fatigue | *"Multiple crews reporting fatigue after extended shifts"* |
+
+The first two are recorded at the *lowest* severity on the scale while describing a
+sustained pattern of psychological harm. `INC-2026-134` is the human tail of the
+March outage from section 3.
+
+**The two severity contradictions I most wanted it to catch, it caught, at the
+highest confidence it assigned to anything:**
+
+- `INC-2025-118` — *"Worker fell from ladder in workshop, fractured forearm,
+  transported to Mater Hospital for surgery."* Recorded severity **1**. Assessed
+  **3**, confidence 0.99. Also recategorised from `SLP` to **Fall from height** —
+  `SLP` files a ladder fall alongside tripping on a walkway.
+- `INC-2025-141` — *"two fingers lacerated requiring sutures, LTI recorded."*
+  Recorded severity **1**. Assessed **3**, confidence 0.98. An LTI is by definition
+  lost time.
+
+### Being honest about the rest of it
+
+**The grounding gate rejected nothing on this run.** Forty-two findings, forty-two
+quotes verbatim. I am reporting that as the result rather than implying the gate
+saved us from something, and it does not make the gate ornamental: it is what makes
+the output *checkable*, and the adversarial suite proves it rejects fabricated,
+re-punctuated, case-shifted, and cross-contaminated quotes. A guard that fires zero
+times against a good run is working.
+
+**It reported 14 severity mismatches, and only about 6 are worth acting on.** The
+signal is the 1→3 jumps above, all at confidence ≥0.94. The rest is ±1 drift at
+0.78–0.86 — a dust exceedance it moves 1→2, a grazed elbow it moves 2→1. Those are
+judgement calls on a three-point scale, and treating them as findings would bury
+the six that matter. The UI badges mismatches but sorts by confidence for exactly
+this reason, and a next iteration should either report a band or only surface
+disagreements of more than one level.
+
+**On one record I think the model is wrong.** `INC-2026-131`, the substation
+failure — three weeks of the site on backup generation — is recorded severity 3 and
+the model assessed 2 at confidence 0.82. It judged the immediate harm, which is what
+the prompt asks for; the register appears to be judging operational consequence.
+That is a genuine ambiguity in the severity definition rather than a model error,
+and it is the kind of thing worth resolving with the client rather than in a prompt.
+
+**And it cannot settle the question the scale raises.** Both `INC-2025-118` and
+`INC-2025-141` sit at severity 1 while describing surgery and a lost-time injury.
+Either those two records are miscoded, or the numeric scale runs the other way — 1
+as *most* severe, as many mining registers do — in which case every numeric row is
+inverted. The model reading descriptions is evidence for the first reading, since
+the rest of the numeric rows line up sensibly under Low=1. It is not proof, so
+`INC-SEV-SCALE-01` stays flagged as a question for the client rather than resolved
+in code.
 
 ---
 

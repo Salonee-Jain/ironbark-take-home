@@ -10,7 +10,7 @@
  * survivors to a cache committed to the repo. Requires ANTHROPIC_API_KEY or
  * OPENAI_API_KEY; nothing else in the project needs either.
  */
-import { closePool, getPool } from '@ironbark/db';
+import { closePool, getPool, loadEnv } from '@ironbark/db';
 import { writeCache, readCache, type FindingsCache } from './cache.js';
 import {
   findMissing,
@@ -74,6 +74,13 @@ function chunk<T>(items: T[], size: number): T[][] {
 
 async function main(): Promise<void> {
   const force = process.argv.includes('--force');
+
+  // Explicitly, before the key is read. The pool loads the .env lazily on first
+  // connect, which used to be enough because the client was constructed after
+  // the incidents query — but resolving the provider first means nothing has
+  // touched the database yet, and the key would look absent when it is merely
+  // unloaded.
+  loadEnv();
 
   // Resolved before any database work: a missing or ambiguous key should fail
   // in the first second, not after loading the register.
