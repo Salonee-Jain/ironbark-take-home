@@ -130,7 +130,7 @@ export const RULES: Record<RuleId, RuleDefinition> = {
       'Eleven rows record kL against a column whose other 139 rows are litres. Converted x1000, with the original ' +
       'value and unit retained. Confirmed independently by cost: after conversion these rows imply $1.73-$1.93/L, ' +
       'inside the range set by every other delivery; before conversion they imply roughly $1,800/L. ' +
-      'Left uncorrected this understates Scope 1 by about 750,000 litres — an error in the direction nobody questions.',
+      'Left uncorrected this understates Scope 1 by about 750,000 litres, an error in the direction nobody questions.',
   }),
 
   'FUEL-DUP-01': rule({
@@ -149,14 +149,14 @@ export const RULES: Record<RuleId, RuleDefinition> = {
 
   'FUEL-CREDIT-01': rule({
     ruleId: 'FUEL-CREDIT-01',
-    title: 'Negative quantity — appears to be a credit note',
+    title: 'Negative quantity, appears to be a credit note',
     sourceFile: 'fuel_deliveries.csv',
     category: 'plausibility',
     defaultSeverity: 'warning',
     defaultAction: 'flagged',
     rationale:
       'INV-41777 records -12,500 L against -$23,375.00, and its invoice number sits outside the 40xxx block used ' +
-      'by every other row. That reads as a credit note — fuel invoiced then reversed — not as corruption. It is ' +
+      'by every other row. That reads as a credit note, fuel invoiced then reversed, rather than corruption. It is ' +
       'loaded with is_credit_note=true so it nets off the totals, because deleting it would overstate consumption ' +
       'while "correcting" the sign would double-count it. Flagged for the client to confirm.',
   }),
@@ -213,7 +213,7 @@ export const RULES: Record<RuleId, RuleDefinition> = {
       'of the median. A fixed multiple has to be tuned against the answer you already expect, and would have missed ' +
       'this dataset: the one anomalous month is 1.49x the median, under any round threshold you would have chosen in ' +
       'advance, while sitting about eight deviations clear of a series that otherwise holds between 0.85x and 1.14x. ' +
-      'Not a defect — the pipeline noticing something real. Read with ELEC-CONSUMPTION-DROP-01 for the same month.',
+      'Not a defect, but the pipeline noticing something real. Read with ELEC-CONSUMPTION-DROP-01 for the same month.',
   }),
 
   'FUEL-MONTH-GAP-01': rule({
@@ -225,7 +225,7 @@ export const RULES: Record<RuleId, RuleDefinition> = {
     defaultAction: 'flagged',
     rationale:
       'November 2025 contains no fuel invoices at all, between an October with 8 and a December with 7. The site was ' +
-      'plainly operating — the meters record a full month of electricity — so this is missing paperwork, not a ' +
+      'plainly operating, since the meters record a full month of electricity, so this is missing paperwork, not a ' +
       'shutdown. Scope 1 is understated for that month by roughly a month of diesel, and nothing else in the file ' +
       'draws attention to it: a gap is invisible unless you go looking for the absence of rows. Flagged rather than ' +
       'interpolated. Estimating the missing volume would put an invented number into a compliance report.',
@@ -342,7 +342,7 @@ export const RULES: Record<RuleId, RuleDefinition> = {
     rationale:
       'Several descriptions appear word for word on multiple incidents at different dates and locations. Two very ' +
       'different explanations: copy-paste in the register, or a hazard genuinely recurring without being addressed. ' +
-      'Flagged rather than deduplicated, because the second reading is a finding in its own right — one description ' +
+      'Flagged rather than deduplicated, because the second reading is a finding in its own right: one description ' +
       'here repeats five times across four locations.',
   }),
 
@@ -356,7 +356,7 @@ export const RULES: Record<RuleId, RuleDefinition> = {
     rationale:
       'Deliberately narrow: fires only when the text names fixed infrastructure (crusher, wash plant, CHPP, ROM ' +
       'pad, thickener) while the location column holds a mobile fleet. A dust exceedance at the crusher cannot have ' +
-      'happened "at" the Haul Fleet. Not corrected — the location column and the description disagree, and the ' +
+      'happened "at" the Haul Fleet. Not corrected, because the location column and the description disagree, and the ' +
       'export gives no way to tell which one the client trusts.',
   }),
 
@@ -385,7 +385,7 @@ export const RULES: Record<RuleId, RuleDefinition> = {
     rationale:
       'Two entities are listed twice: once as a legal-suffix variant (Pty Ltd / P-L) and once as a spelling error ' +
       'sharing an ABN (Maintenance / Maintanence). Both rows are kept and the duplicate points at its primary, ' +
-      'rather than being merged away — the client ledger contains both, and reconciling against it later needs ' +
+      'rather than being merged away. The client ledger contains both, and reconciling against it later needs ' +
       'both visible. Unmerged, Ironline reads as $8.94M against a true $10.15M, which is the difference between ' +
       'their largest supplier and their second largest.',
   }),
@@ -412,7 +412,7 @@ export const RULES: Record<RuleId, RuleDefinition> = {
     rationale:
       'Twelve of the fifteen suppliers carry a correctly formed 11-digit ABN, and all twelve fail the modulus-89 ' +
       'checksum. When a rule fails for 100% of the rows it applies to, the honest conclusion is that the source is ' +
-      'systematically different from what the rule assumes — synthetic or masked values — not that the client has ' +
+      'systematically different from what the rule assumes, most likely synthetic or masked values, not that the client has ' +
       'twelve separate problems. Reported once at file level so it does not bury the one genuinely malformed ABN, ' +
       'and no supplier is marked invalid on this basis alone.',
   }),
