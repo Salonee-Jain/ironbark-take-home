@@ -1,5 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import { authRoutes } from './auth.routes.js';
+import { correlationRoutes } from './correlation.routes.js';
 import { dataQualityRoutes } from './dataQuality.routes.js';
 import { emissionsRoutes } from './emissions.routes.js';
 import { healthRoutes } from './health.routes.js';
@@ -15,5 +16,6 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
   await app.register(incidentRoutes);
   await app.register(dataQualityRoutes);
   await app.register(supplierRoutes);
+  await app.register(correlationRoutes);
   await app.register(uploadRoutes);
 }

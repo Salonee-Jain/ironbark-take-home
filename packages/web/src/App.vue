@@ -19,12 +19,23 @@ import type {
   Incident,
   IncidentTrends,
   MonthlyEmissions,
+  OutageAnalysis,
   SiteArea,
   UserProfile,
 } from './types';
 
-/** The month the substation failed, per INC-2026-131. */
-const OUTAGE_MONTH = '2026-03';
+/**
+ * The outage month is no longer a constant here.
+ *
+ * It used to be `'2026-03'`, hard-coded from having read the data. The API now
+ * detects it, so the dashboard annotates whatever month the analysis actually
+ * finds — and annotates nothing when there is nothing to find, which is what a
+ * newly signed-up company should see.
+ */
+const outage = ref<OutageAnalysis | null>(null);
+const outageMonth = computed(() =>
+  outage.value?.detected ? outage.value.month : null,
+);
 
 const loading = ref(true);
 const error = ref<ApiError | null>(null);
@@ -78,7 +89,7 @@ async function loadDashboard(): Promise<void> {
 
   try {
     profile.value = await api.me();
-    const [m, s, sa, inc, tr, q, qi] = await Promise.all([
+    const [m, s, sa, inc, tr, q, qi, og] = await Promise.all([
       api.monthlyEmissions(),
       api.summary(),
       api.bySiteArea(),
@@ -86,6 +97,7 @@ async function loadDashboard(): Promise<void> {
       api.incidentTrends(),
       api.dataQuality(),
       api.dataQualityIssues('?limit=500'),
+      api.outageAnalysis(),
     ]);
     months.value = m.months;
     summary.value = s;
@@ -94,6 +106,7 @@ async function loadDashboard(): Promise<void> {
     trends.value = tr;
     dq.value = q;
     dqIssues.value = qi.issues;
+    outage.value = og;
   } catch (e) {
     error.value = e instanceof ApiError ? e : new ApiError(0, String(e));
   } finally {
@@ -287,7 +300,7 @@ onMounted(() => {
       >
         <StackedColumnChart
           :months="months"
-          :highlight-month="OUTAGE_MONTH"
+          :highlight-month="outageMonth"
           highlight-note="substation failure"
         />
         <template #table>
@@ -336,7 +349,7 @@ onMounted(() => {
         title="Scope 1 share of the monthly footprint"
         subtitle="Shown as its own chart rather than a second axis on the columns — two y-scales on one plot align arbitrarily and invent a correlation the data does not contain."
       >
-        <ShareLineChart :months="months" :highlight-month="OUTAGE_MONTH" />
+        <ShareLineChart :months="months" :highlight-month="outageMonth" />
         <template #table>
           <table class="data">
             <thead><tr><th>Month</th><th>Scope 1 share</th><th>Month on month</th></tr></thead>
@@ -372,7 +385,7 @@ onMounted(() => {
         </template>
       </ChartFrame>
 
-      <OutagePanel :months="months" :outage-month="OUTAGE_MONTH" />
+      <OutagePanel v-if="outage" :analysis="outage" />
       </template>
 
       <template v-if="section === 'safety'">

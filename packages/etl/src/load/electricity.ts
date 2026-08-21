@@ -1,7 +1,7 @@
 import type { CsvFile } from '../csv.js';
 import type { IssueCollector } from '../issues.js';
 import { normaliseDate } from '../normalise/index.js';
-import { isOutlier, median, modifiedZScore } from '../stats.js';
+import { isOutlier, median, modifiedZScore } from '@ironbark/shared';
 
 export type MeterRecord = {
   meterId: string;

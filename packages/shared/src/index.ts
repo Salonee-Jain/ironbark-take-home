@@ -56,3 +56,20 @@ export type SourceFile =
   | 'incident_register.csv'
   | 'suppliers.csv'
   | 'emission_factors.csv';
+
+/**
+ * Robust statistics, shared because two layers need the same test.
+ *
+ * The ETL uses it to raise the anomaly rules; the API uses it to find the
+ * outage month for the correlation view. If they disagreed about what counts as
+ * an outlier, the dashboard would narrate an event the data-quality report had
+ * not flagged.
+ */
+export {
+  isOutlier,
+  median,
+  medianAbsoluteDeviation,
+  modifiedZScore,
+  MIN_RELATIVE_DEVIATION,
+  OUTLIER_Z_THRESHOLD,
+} from './stats.js';

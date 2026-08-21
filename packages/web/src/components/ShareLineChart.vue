@@ -15,7 +15,7 @@ import type { MonthlyEmissions } from '../types';
  */
 const props = defineProps<{
   months: MonthlyEmissions[];
-  highlightMonth?: string;
+  highlightMonth?: string | null;
 }>();
 
 const W = 900;

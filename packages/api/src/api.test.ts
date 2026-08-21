@@ -484,3 +484,126 @@ describe('tenant isolation', () => {
     expect(response.statusCode).toBe(404);
   });
 });
+
+describe('cross-dataset correlation', () => {
+  /**
+   * The differentiator, and the endpoint most at risk of being a demo that
+   * already knows the answer. These tests assert that nothing is hard-coded:
+   * the month, the meters and both incidents have to be *found*.
+   */
+  withDb()('detects the outage month without being told which it is', async () => {
+    const response = await get('/api/analysis/outage');
+    expect(response.statusCode).toBe(200);
+
+    const body = response.json();
+    expect(body.detected).toBe(true);
+    expect(body.month).toBe('2026-03');
+  });
+
+  withDb()('shows the collapse on every meter, against each meter\'s own norm', async () => {
+    // The claim that makes this a supply event rather than a broken instrument.
+    // Measured per meter because the site's meters differ by an order of
+    // magnitude — a site-wide percentage would hide a small meter inside a
+    // large one's noise.
+    const { electricity } = (await get('/api/analysis/outage')).json();
+
+    expect(electricity.meterCount).toBe(6);
+    expect(electricity.metersBelowBaseline).toBe(6);
+    expect(electricity.changePct).toBeLessThan(-60);
+
+    for (const meter of electricity.meters) {
+      expect(meter.belowBaseline, meter.meterId).toBe(true);
+      expect(meter.changePct, meter.meterId).toBeLessThan(-50);
+    }
+  });
+
+  withDb()('shows diesel substituting for the lost supply', async () => {
+    const { fuel } = (await get('/api/analysis/outage')).json();
+    expect(fuel.changePct).toBeGreaterThan(40);
+    expect(fuel.excessLitres).toBeGreaterThan(200_000);
+  });
+
+  withDb()('finds the root-cause incident rather than naming it', async () => {
+    const { incidents } = (await get('/api/analysis/outage')).json();
+    expect(incidents.rootCause.id).toBe('INC-2026-131');
+    expect(incidents.rootCause.typeCode).toBe('ELE');
+    expect(incidents.rootCause.severity).toBe(3);
+  });
+
+  withDb()('finds the psychosocial consequence through the AI layer', async () => {
+    // Coded OTH in the register; only the AI classification makes it findable
+    // as the human tail of the outage.
+    const { incidents } = (await get('/api/analysis/outage')).json();
+    const ids = incidents.consequences.map((c: { id: string }) => c.id);
+
+    expect(ids).toContain('INC-2026-134');
+    const fatigue = incidents.consequences.find(
+      (c: { id: string }) => c.id === 'INC-2026-134',
+    );
+    expect(fatigue.typeCode).toBe('OTH');
+    expect(fatigue.aiCategory).toBe('Psychosocial hazard');
+    // Traceable: the quote must be in the description it came from.
+    expect(fatigue.description).toContain(fatigue.aiEvidenceQuote);
+  });
+
+  withDb()('reports the total falling while Scope 1 rises', async () => {
+    // The whole point. A dashboard reporting one number calls this an
+    // improvement; the split says the opposite.
+    const { emissions } = (await get('/api/analysis/outage')).json();
+
+    expect(emissions.totalChangePct).toBeLessThan(0);
+    expect(emissions.scope1ChangePct).toBeGreaterThan(40);
+    expect(emissions.scope2ChangePct).toBeLessThan(-60);
+    expect(emissions.actual.scope1SharePct).toBeGreaterThan(75);
+  });
+
+  withDb()('gives a counterfactual above the reported total, with its assumption', async () => {
+    const { counterfactual, emissions } = (await get('/api/analysis/outage')).json();
+
+    expect(counterfactual.totalKgCo2e).toBeGreaterThan(emissions.actual.totalKgCo2e);
+    // Negative: the reported figure sits below a normal month. That gap is the
+    // size of the misreading, not a saving.
+    expect(counterfactual.reportedMinusCounterfactualKg).toBeLessThan(0);
+    // The estimate must carry its own caveat rather than leaving the UI to
+    // present it as a measurement.
+    expect(counterfactual.assumption).toContain('not a forecast');
+    expect(counterfactual.gridFactorKgPerKwh).toBe(0.71);
+  });
+
+  withDb()('builds a chain where every link names its source dataset', async () => {
+    const { chain } = (await get('/api/analysis/outage')).json();
+
+    expect(chain).toHaveLength(6);
+    expect(chain.map((link: { step: number }) => link.step)).toEqual([1, 2, 3, 4, 5, 6]);
+    for (const link of chain) {
+      expect(link.source, link.title).toBeTruthy();
+      expect(link.detail.length, link.title).toBeGreaterThan(20);
+    }
+    // The chain starts at the incident register and ends there too — cause and
+    // human consequence both come from the dataset nobody thinks of as
+    // emissions data.
+    expect(chain[0].recordId).toBe('INC-2026-131');
+    expect(chain[5].recordId).toBe('INC-2026-134');
+  });
+
+  withDb()('reports no detection for a tenant with no data, rather than erroring', async () => {
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/analysis/outage',
+      headers: { cookie: other.cookie },
+    });
+
+    expect(response.statusCode).toBe(200);
+    const body = response.json();
+    expect(body.detected).toBe(false);
+    expect(body.reason).toBeTruthy();
+    // And no trace of the neighbour's outage.
+    expect(response.body).not.toContain('2026-03');
+    expect(response.body).not.toContain('INC-2026-131');
+  });
+
+  withDb()('requires a session', async () => {
+    const response = await app.inject({ method: 'GET', url: '/api/analysis/outage' });
+    expect(response.statusCode).toBe(401);
+  });
+});

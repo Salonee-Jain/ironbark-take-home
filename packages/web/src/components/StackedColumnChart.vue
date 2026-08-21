@@ -18,8 +18,11 @@ import type { MonthlyEmissions } from '../types';
  */
 const props = defineProps<{
   months: MonthlyEmissions[];
-  /** Month to annotate, e.g. the outage. */
-  highlightMonth?: string;
+  /**
+   * Month to annotate, e.g. the outage. Null when the analysis found
+   * nothing to annotate — the caller passes a detection result, not a guess.
+   */
+  highlightMonth?: string | null;
   highlightNote?: string;
 }>();
 

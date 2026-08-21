@@ -10,7 +10,7 @@ import {
   toMonthStart,
 } from '../normalise/index.js';
 import { KNOWN_SITE_AREAS } from '../reference.js';
-import { isOutlier, median, modifiedZScore } from '../stats.js';
+import { isOutlier, median, modifiedZScore } from '@ironbark/shared';
 import { FACTOR_KEY_BY_FUEL_TYPE } from './emissionFactors.js';
 
 export type FuelDeliveryRecord = {

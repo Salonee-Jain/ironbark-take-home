@@ -5,6 +5,7 @@ import type {
   Incident,
   IncidentTrends,
   MonthlyEmissions,
+  OutageAnalysis,
   SiteArea,
   UploadResult,
   UserProfile,
@@ -145,4 +146,5 @@ export const api = {
   dataQuality: () => get<DataQualityOverview>('/api/data-quality'),
   dataQualityIssues: (params = '') =>
     get<{ issues: DataQualityIssue[] }>(`/api/data-quality/issues${params}`),
+  outageAnalysis: () => get<OutageAnalysis>('/api/analysis/outage'),
 };

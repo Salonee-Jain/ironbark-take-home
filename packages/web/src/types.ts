@@ -129,3 +129,89 @@ export type UploadResult = {
   load: { id: number; issueCount: number; errorCount: number; finishedAt: string | null };
   issuesByRule: [string, number][];
 };
+
+/**
+ * Cross-dataset correlation, from `GET /api/analysis/outage`.
+ *
+ * A discriminated union on `detected`, because "no outage in this data" is a
+ * normal answer — a newly signed-up company has none — and modelling it as a
+ * nullable object invites rendering an empty panel instead of saying so.
+ */
+export type OutageChainLink = {
+  step: number;
+  source: string;
+  title: string;
+  detail: string;
+  recordId: string | null;
+};
+
+export type OutageMeter = {
+  meterId: string;
+  description: string | null;
+  consumptionKwh: number;
+  baselineKwh: number;
+  changePct: number;
+  belowBaseline: boolean;
+};
+
+export type OutageIncident = {
+  id: string;
+  incidentDate: string;
+  typeCode: string;
+  severity: number | null;
+  description: string;
+  aiCategory?: string | null;
+  aiEvidenceQuote?: string | null;
+};
+
+export type OutageAnalysis =
+  | { detected: false; reason: string; monthsAnalysed?: number }
+  | {
+      detected: true;
+      month: string;
+      window: { from: string; to: string };
+      electricity: {
+        actualKwh: number;
+        baselineKwh: number;
+        changePct: number;
+        meterCount: number;
+        metersBelowBaseline: number;
+        meters: OutageMeter[];
+      };
+      fuel: {
+        actualLitres: number;
+        baselineLitres: number;
+        changePct: number;
+        excessLitres: number;
+        deliveryCount: number;
+      };
+      emissions: {
+        actual: {
+          scope1KgCo2e: number;
+          scope2KgCo2e: number;
+          totalKgCo2e: number;
+          scope1SharePct: number;
+        };
+        baseline: {
+          scope1KgCo2e: number;
+          scope2KgCo2e: number;
+          totalKgCo2e: number;
+          scope1SharePct: number;
+        };
+        scope1ChangePct: number;
+        scope2ChangePct: number;
+        totalChangePct: number;
+      };
+      counterfactual: {
+        totalKgCo2e: number;
+        reportedMinusCounterfactualKg: number;
+        gridFactorKgPerKwh: number | null;
+        assumption: string;
+      };
+      incidents: {
+        rootCause: OutageIncident | null;
+        consequences: OutageIncident[];
+        countInWindow: number;
+      };
+      chain: OutageChainLink[];
+    };

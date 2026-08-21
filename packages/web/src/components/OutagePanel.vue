@@ -1,158 +1,151 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { percent, signedPercent, tonnes } from '../format';
-import type { MonthlyEmissions } from '../types';
+import { monthLabelLong, signedPercent, tonnes } from '../format';
+import type { OutageAnalysis } from '../types';
 
 /**
- * The March 2026 substation failure.
+ * The cross-dataset finding.
  *
- * This panel exists because no single dataset states what happened. The meters
+ * This panel exists because no single dataset states what happened: the meters
  * show a collapse, the fuel invoices show a spike, and the incident register
- * explains both — and the headline total falls, which makes the month look like
- * an improvement. Putting the three side by side is the finding.
+ * explains both — while the headline total *falls*, which makes the month look
+ * like an improvement.
+ *
+ * Everything shown here is computed by `GET /api/analysis/outage`, including
+ * which month it is and which incidents are involved. The component used to
+ * derive the baselines in the browser and carry the month and both incident IDs
+ * as literals in its own prose. That was two implementations of one analysis and
+ * a panel that could only ever describe this dataset; now it renders whatever
+ * the API detected, and disappears when there is nothing to report.
  */
-const props = defineProps<{
-  months: MonthlyEmissions[];
-  outageMonth: string;
-}>();
+const props = defineProps<{ analysis: OutageAnalysis }>();
 
-const outage = computed(
-  () => props.months.find((m) => m.month === props.outageMonth) ?? null,
+const found = computed(() => (props.analysis.detected ? props.analysis : null));
+
+const heading = computed(() =>
+  found.value ? monthLabelLong(found.value.month) : '',
 );
 
-/** Median of the other months — robust to the outage itself. */
-function median(values: number[]): number {
-  const sorted = [...values].sort((a, b) => a - b);
-  const mid = Math.floor(sorted.length / 2);
-  return sorted.length % 2 === 0
-    ? ((sorted[mid - 1] ?? 0) + (sorted[mid] ?? 0)) / 2
-    : (sorted[mid] ?? 0);
-}
-
-const baseline = computed(() => {
-  // Excludes the outage month and November 2025, whose fuel invoices are
-  // missing — a baseline built from a known gap would understate normal.
-  const others = props.months.filter(
-    (m) => m.month !== props.outageMonth && m.scope1KgCo2e > 0,
-  );
-  return {
-    scope1: median(others.map((m) => m.scope1KgCo2e)),
-    scope2: median(others.map((m) => m.scope2KgCo2e)),
-    total: median(others.map((m) => m.totalKgCo2e)),
-    share: median(others.map((m) => m.scope1SharePct)),
-  };
-});
-
-function change(actual: number, normal: number): number {
-  return ((actual - normal) / normal) * 100;
-}
-
-/**
- * What March would have emitted had the grid held.
- *
- * Not a forecast — the same activity costed at the other factor. The lost grid
- * kWh are valued at 0.71 kg/kWh instead of being met by diesel at 2.70 kg/L.
- */
-const counterfactual = computed(() => baseline.value.total);
+const direction = (value: number) => (value > 0 ? 'up' : value < 0 ? 'down' : 'neutral');
 </script>
 
 <template>
-  <section v-if="outage" class="panel card">
+  <section v-if="found" class="panel card">
     <header>
       <span class="tag">Cross-dataset finding</span>
-      <h2>March 2026: the month emissions “fell”</h2>
+      <h2>{{ heading }}: the month emissions “fell”</h2>
       <p class="lede">
-        Total emissions dropped
-        {{ percent(Math.abs(change(outage.totalKgCo2e, baseline.total))) }} in March 2026,
-        which reads as a good month. It was not. A regional substation failure
-        (INC-2026-131) cut grid supply for roughly three weeks and the site ran on
-        backup diesel generators. Grid consumption collapsed, so Scope 2 fell — but the
-        load moved to a fuel with almost four times the emission factor per unit of
-        useful energy, and Scope 1 rose to its highest level in the period.
+        Total emissions moved
+        {{ signedPercent(found.emissions.totalChangePct) }} against a median month, which
+        reads as the best month of the period. It was not. Grid supply was lost and the
+        site ran on backup diesel — so Scope 2 collapsed while Scope 1 rose to its highest
+        level, because the load moved onto a fuel with a far heavier factor. The total
+        fell only because part of the site stopped.
       </p>
     </header>
 
     <div class="grid">
       <div class="metric">
         <div class="metric-label"><span class="key scope2" />Scope 2 · grid</div>
-        <div class="metric-value">{{ tonnes(outage.scope2KgCo2e) }}<span class="u">t</span></div>
-        <div class="delta down">
-          {{ signedPercent(change(outage.scope2KgCo2e, baseline.scope2)) }}
-          <span class="vs">vs {{ tonnes(baseline.scope2) }} t typical</span>
+        <div class="metric-value">
+          {{ tonnes(found.emissions.actual.scope2KgCo2e) }}<span class="u">t</span>
+        </div>
+        <div class="delta" :class="direction(found.emissions.scope2ChangePct)">
+          {{ signedPercent(found.emissions.scope2ChangePct) }}
+          <span class="vs">vs median month</span>
         </div>
       </div>
 
       <div class="metric">
         <div class="metric-label"><span class="key scope1" />Scope 1 · fuel</div>
-        <div class="metric-value">{{ tonnes(outage.scope1KgCo2e) }}<span class="u">t</span></div>
-        <div class="delta up">
-          {{ signedPercent(change(outage.scope1KgCo2e, baseline.scope1)) }}
-          <span class="vs">vs {{ tonnes(baseline.scope1) }} t typical</span>
+        <div class="metric-value">
+          {{ tonnes(found.emissions.actual.scope1KgCo2e) }}<span class="u">t</span>
+        </div>
+        <div class="delta" :class="direction(found.emissions.scope1ChangePct)">
+          {{ signedPercent(found.emissions.scope1ChangePct) }}
+          <span class="vs">vs median month</span>
         </div>
       </div>
 
       <div class="metric">
         <div class="metric-label">Scope 1 share</div>
-        <div class="metric-value">{{ outage.scope1SharePct }}<span class="u">%</span></div>
-        <div class="delta up">
-          from {{ baseline.share.toFixed(1) }}%
-          <span class="vs">every other month</span>
+        <div class="metric-value">
+          {{ found.emissions.actual.scope1SharePct }}<span class="u">%</span>
+        </div>
+        <div class="delta neutral">
+          from {{ found.emissions.baseline.scope1SharePct }}%
+          <span class="vs">the signal that moves</span>
         </div>
       </div>
 
       <div class="metric">
-        <div class="metric-label">Total</div>
-        <div class="metric-value">{{ tonnes(outage.totalKgCo2e) }}<span class="u">t</span></div>
+        <div class="metric-label">Had the grid held</div>
+        <div class="metric-value">
+          {{ tonnes(found.counterfactual.totalKgCo2e) }}<span class="u">t</span>
+        </div>
         <div class="delta neutral">
-          {{ signedPercent(change(outage.totalKgCo2e, counterfactual)) }}
-          <span class="vs">vs {{ tonnes(counterfactual) }} t on grid supply</span>
+          reported {{ tonnes(found.emissions.actual.totalKgCo2e) }}t
+          <span class="vs">counterfactual, not a measurement</span>
         </div>
       </div>
     </div>
 
     <ol class="chain">
-      <li>
-        <span class="step">1</span>
-        <div>
-          <strong>Grid supply lost.</strong> All six meters fall together to
-          {{ percent((outage.scope2KgCo2e / baseline.scope2) * 100, 0) }} of normal — a
-          simultaneous drop across every meter points at supply, not metering.
-        </div>
-      </li>
-      <li>
-        <span class="step">2</span>
-        <div>
-          <strong>Diesel substitutes in.</strong> Fuel volume runs 1.49× the median month,
-          six standard deviations clear of a series that otherwise holds between 0.85×
-          and 1.14×.
-        </div>
-      </li>
-      <li>
-        <span class="step">3</span>
-        <div>
-          <strong>The footprint shifts, it does not shrink.</strong> Scope 2 down
-          {{ percent(Math.abs(change(outage.scope2KgCo2e, baseline.scope2)), 0) }},
-          Scope 1 up
-          {{ percent(change(outage.scope1KgCo2e, baseline.scope1), 0) }}. The total falls
-          only because the site was also running below capacity.
-        </div>
-      </li>
-      <li>
-        <span class="step">4</span>
-        <div>
-          <strong>It has a safety tail.</strong> INC-2026-134 records multiple crews
-          reporting fatigue after extended shifts covering generator operations and
-          manual restarts during the outage.
-        </div>
+      <li v-for="link in found.chain" :key="link.step">
+        <span class="step">{{ link.step }}</span>
+        <span>
+          <strong>{{ link.title }}</strong> — {{ link.detail }}
+          <em class="src">{{ link.source }}</em>
+        </span>
       </li>
     </ol>
 
+    <!-- The evidence that this is a supply failure and not a broken meter.
+         Each meter against its own history, because they differ by an order of
+         magnitude and a site-wide percentage would hide the small ones. -->
+    <details class="evidence">
+      <summary>
+        All {{ found.electricity.metersBelowBaseline }} of
+        {{ found.electricity.meterCount }} meters fell at once
+      </summary>
+      <table>
+        <thead>
+          <tr><th>Meter</th><th></th><th>This month</th><th>Its norm</th><th>Change</th></tr>
+        </thead>
+        <tbody>
+          <tr v-for="meter in found.electricity.meters" :key="meter.meterId">
+            <td><code>{{ meter.meterId }}</code></td>
+            <td class="muted">{{ meter.description }}</td>
+            <td class="num">{{ Math.round(meter.consumptionKwh).toLocaleString() }}</td>
+            <td class="num muted">{{ Math.round(meter.baselineKwh).toLocaleString() }}</td>
+            <td class="num">{{ signedPercent(meter.changePct) }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </details>
+
+    <p v-if="found.incidents.rootCause" class="footnote">
+      <strong>Root cause:</strong> <code>{{ found.incidents.rootCause.id }}</code>
+      ({{ found.incidents.rootCause.incidentDate }}, severity
+      {{ found.incidents.rootCause.severity }}) — {{ found.incidents.rootCause.description }}
+    </p>
+
+    <p
+      v-for="consequence in found.incidents.consequences"
+      :key="consequence.id"
+      class="footnote"
+    >
+      <strong>Human cost:</strong> <code>{{ consequence.id }}</code> — coded
+      <code>{{ consequence.typeCode }}</code> in the register, identified as
+      <strong>{{ consequence.aiCategory }}</strong> by the AI layer, on the evidence
+      “{{ consequence.aiEvidenceQuote }}”.
+    </p>
+
     <p class="footnote">
-      Sources: <code>electricity_meter_readings.csv</code> (6 meters ×
-      {{ months.length }} months), <code>fuel_deliveries.csv</code>,
-      <code>incident_register.csv</code> INC-2026-131 and INC-2026-134. Baselines are
-      medians of the other months, excluding November 2025 whose fuel invoices are
-      missing entirely.
+      {{ found.counterfactual.assumption }}
+      Fuel volume {{ signedPercent(found.fuel.changePct) }} across
+      {{ found.fuel.deliveryCount }} deliveries —
+      {{ Math.round(found.fuel.excessLitres).toLocaleString() }} L above a median month.
     </p>
   </section>
 </template>
@@ -296,6 +289,56 @@ h2 {
   display: grid;
   place-items: center;
   margin-top: 1px;
+}
+
+/* Each link says which file it rests on, so a reader can check one step without
+   accepting the whole story. */
+.src {
+  display: block;
+  font-size: 11px;
+  font-style: normal;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.evidence {
+  margin-top: 20px;
+  font-size: 12.5px;
+}
+
+.evidence summary {
+  cursor: pointer;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.evidence table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 10px;
+}
+
+.evidence th {
+  text-align: left;
+  font-weight: 500;
+  color: var(--text-muted);
+  font-size: 11px;
+  padding: 4px 8px 4px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.evidence td {
+  padding: 5px 8px 5px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.evidence .num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.evidence .muted {
+  color: var(--text-muted);
 }
 
 .footnote {

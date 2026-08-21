@@ -40,7 +40,7 @@ install. `npm run db:down` stops it; `npm run db:reset` also destroys the volume
 without buying inference. A key is only needed to re-run classification.
 
 ```bash
-npm test               # 228 tests; the DB suites skip if Postgres is down
+npm test               # 238 tests; the DB suites skip if Postgres is down
 npm run typecheck
 npm run writeup        # regenerate the tables in section 2 from the rule engine
 ```
@@ -227,6 +227,28 @@ its own supports a confident and wrong conclusion: emissions improved; consumpti
 dropped; fuel spiked; a crew got tired. Only together do they say *a substation
 failed, and the compliance number moved in the flattering direction for a bad
 reason.*
+
+**None of it is hard-coded.** `GET /api/analysis/outage` finds the month itself, as
+the largest *downward* outlier in site-wide grid consumption, using the same robust
+test as the ETL's anomaly rules — so the dashboard cannot narrate an event that the
+data-quality report did not flag. From there it locates the root cause (the most
+severe electrical incident inside that month), the consequences (anything the AI
+layer read as a psychosocial hazard in a window extending past the month, because a
+three-week outage has effects that land later), and checks each meter against **its
+own** history rather than a site average, since the meters differ by an order of
+magnitude and a site-wide percentage would hide a small meter inside a large one's
+noise. All six are below their own norms, between −63% and −67%.
+
+That distinction matters more than it sounds. A panel with `'2026-03'` and two
+incident IDs written into it proves only that someone read the data once; this one
+would find the same shape in next year's export, and shows nothing at all for a
+company that has no such month.
+
+The counterfactual returns its own `assumption` field rather than burying it in
+prose — it compares against a median month, it is not a forecast, and if output was
+down that month for an unrelated reason it overstates the gap. The UI renders that
+caveat next to the number, because an estimate presented as a measurement is exactly
+the failure this project is organised against.
 
 ---
 
@@ -433,7 +455,7 @@ have called an improvement.
 
 ## What I chose to test, and why
 
-The brief asks which parts I chose to test rather than for coverage. **228 tests**,
+The brief asks which parts I chose to test rather than for coverage. **238 tests**,
 selected by one question: *would this failure produce a wrong compliance number that
 nobody notices?*
 
@@ -443,7 +465,7 @@ nobody notices?*
 | Data-quality engine | 47 | The whole cleaning layer, as a golden run against the real `data/raw/`. Asserts 22 rules, 99 findings and every headline result. Plus fixtures for the three rules this export never triggers, so "silent" stays distinguishable from "broken". |
 | AI grounding | 19 | A hallucinated finding reaching the UI. Written adversarially. |
 | Emissions | 16 | The SQL arithmetic, computed longhand in the test. Covers the credit netting off, the MTR-07 correction reaching Scope 2, November staying zero, and March rising in Scope 1 while Scope 2 collapses. |
-| API | 25 | Contract and tenancy. A second empty tenant checks isolation — the failure that does not error: a missing `company_id` reports one client's fuel to another and looks entirely fine. |
+| API | 35 | Contract and tenancy. A second empty tenant checks isolation — the failure that does not error: a missing `company_id` reports one client's fuel to another and looks entirely fine. Ten of these cover the correlation endpoint, and assert that the month, the meters and both incidents are *detected* rather than named. |
 
 What is deliberately **not** tested: Vue component rendering, and the model's
 judgement. The first is better served by looking at it; the second is not a

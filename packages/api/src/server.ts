@@ -134,6 +134,10 @@ export function buildServer(
           description: 'What was wrong with the source data, and what we did',
         },
         { name: 'suppliers', description: 'Supplier list and spend' },
+        {
+          name: 'analysis',
+          description: 'Findings that need more than one dataset to see',
+        },
         { name: 'health', description: 'Liveness' },
       ],
     },
