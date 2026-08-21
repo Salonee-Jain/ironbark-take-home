@@ -28,6 +28,7 @@ npm-debug.log*
 # working notes, kept locally rather than published with the submission
 PLAN.md
 INTERVIEW.md
+EXPECTATIONS.md
 .vercel
 .env*.local
 
