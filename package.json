@@ -24,10 +24,13 @@
     "ai:report": "npm run ai:report --workspace @ironbark/api --",
     "writeup": "npm run writeup --workspace @ironbark/etl --",
     "api": "npm run dev --workspace @ironbark/api",
-    "web": "npm run dev --workspace @ironbark/web"
+    "web": "npm run dev --workspace @ironbark/web",
+    "build:function": "node scripts/build-function.mjs",
+    "build:vercel": "npm run build --workspace @ironbark/web && npm run build:function"
   },
   "devDependencies": {
     "@types/node": "^24.10.1",
+    "esbuild": "^0.25.12",
     "tsx": "^4.20.7",
     "typescript": "^5.9.3",
     "vitest": "^3.2.4"

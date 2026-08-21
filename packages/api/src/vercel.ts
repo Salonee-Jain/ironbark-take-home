@@ -1,5 +1,5 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import { buildServer } from '../packages/api/src/server.js';
+import { buildServer } from './server.js';
 
 /**
  * The API as a Vercel function.
