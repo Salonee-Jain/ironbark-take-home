@@ -3,6 +3,10 @@
 Emissions, safety and data quality intelligence over 18 months of operational data from a
 fictional Queensland open-cut mine.
 
+**Live: https://ironbark-ridge.vercel.app**
+
+Sign in as `demo@ironbarkridge.com.au` with the password `demo1234`.
+
 Built for the ESGAgent.ai take-home challenge. See [`ASSIGNMENT.md`](./ASSIGNMENT.md) for
 the brief and [`WRITEUP.md`](./WRITEUP.md) for the decisions behind every part of it.
 
@@ -39,7 +43,8 @@ packages/web/      Vue 3 dashboard
 
 ## Quickstart
 
-Requires Node 22 or later and Docker.
+The hosted app above needs nothing installed. To run it yourself, you need Node 22 or later
+and Docker.
 
 ```bash
 cp .env.example .env
@@ -75,6 +80,14 @@ npm run writeup   # regenerate the data-quality tables in WRITEUP.md from the ru
 
 CI runs the same sequence on every push against a real Postgres service container,
 including the pipeline over the actual export.
+
+## Deployment
+
+The hosted app is the static Vue build plus one Fastify function under `/api/*`, with Neon
+Postgres behind it. `vercel.json` holds the build command, the region and the rewrites;
+`scripts/build-function.mjs` bundles the API so nothing is left to resolve at runtime. No AI
+key is set on the server, because both AI outputs are committed and served from the
+repository.
 
 ## Re-running the AI layer
 

@@ -21,7 +21,12 @@ wrong and how I caught it.
 
 ## 1. How to run it
 
-Requires **Node 22 or later** and **Docker**.
+**It is already running: https://ironbark-ridge.vercel.app**
+
+Sign in as **`demo@ironbarkridge.com.au` / `demo1234`**. That is the whole demo, with the
+real export loaded and both AI layers live.
+
+To run it yourself you need **Node 22 or later** and **Docker**.
 
 ```bash
 cp .env.example .env
@@ -57,7 +62,19 @@ npm run writeup        # regenerate the tables in section 2 from the rule engine
 
 CI runs the same sequence on every push against a real Postgres service container,
 including the pipeline over the actual export, so a parser that breaks on real input
-fails there rather than in a demo.
+fails there rather than in a demo. Every push to `main` also rebuilds and redeploys the
+hosted app.
+
+### How it is deployed
+
+The static Vue build is served directly and the whole API runs as one function under
+`/api/*`, with Neon Postgres behind it and the function pinned to the same region as the
+database. The API is bundled at build time, because the platform compiles the function's own
+TypeScript but ships workspace packages as raw `.ts`, which Node cannot import at runtime.
+
+**No AI key is set on the server.** Both AI outputs are committed and served from the
+repository, so the hosted demo cannot spend money. Generating a new summary is the one paid
+path, it is owner-only, and it answers with a clear 503 when no key is configured.
 
 ### Layout
 
