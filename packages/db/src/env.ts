@@ -4,11 +4,26 @@ import { fileURLToPath } from 'node:url';
 import dotenv from 'dotenv';
 
 /**
- * The repo root, four levels up from this file at packages/db/src/env.ts.
- * Resolved from the module URL rather than process.cwd() so the loader works
- * the same whether a script is run from the root or from inside a workspace.
+ * Where to look for the .env file.
+ *
+ * The module's own location first, so a script run from inside a workspace
+ * finds the root file, then the working directory. The module URL is read
+ * defensively because it does not survive bundling: a deployed build compiles
+ * this into a single file where `import.meta.url` can be undefined, and a
+ * loader that threw there would take the whole API down at import time for the
+ * sake of a file the platform does not use anyway.
  */
-const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../..');
+function repoRootCandidates(): string[] {
+  const candidates: string[] = [];
+  try {
+    const url = import.meta.url;
+    if (url) candidates.push(resolve(dirname(fileURLToPath(url)), '../../..'));
+  } catch {
+    // Bundled, or otherwise without a module URL. The cwd fallback covers it.
+  }
+  candidates.push(process.cwd());
+  return candidates;
+}
 
 let loaded = false;
 
@@ -24,9 +39,12 @@ export function loadEnv(): void {
   if (loaded) return;
   loaded = true;
 
-  const envPath = resolve(repoRoot, '.env');
-  if (existsSync(envPath)) {
-    dotenv.config({ path: envPath, quiet: true });
+  for (const root of repoRootCandidates()) {
+    const envPath = resolve(root, '.env');
+    if (existsSync(envPath)) {
+      dotenv.config({ path: envPath, quiet: true });
+      return;
+    }
   }
 }
 

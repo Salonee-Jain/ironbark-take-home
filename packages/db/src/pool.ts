@@ -40,8 +40,15 @@ export function getPool(): pg.Pool {
       connectionString: loadDatabaseUrl(),
       // A local Docker container either answers immediately or is not running.
       // Fail fast instead of hanging the ETL for 30 seconds.
-      connectionTimeoutMillis: 5_000,
-      max: 10,
+      connectionTimeoutMillis: 10_000,
+      // Ten is right for a long-lived process holding one pool. A serverless
+      // deployment runs many short-lived instances against a database with its
+      // own connection ceiling, so the ceiling is per instance and configurable.
+      max: Number(process.env['PGPOOL_MAX'] ?? (process.env['VERCEL'] ? 3 : 10)),
+      // Serverless instances are frozen between requests; an idle client held
+      // open across that gap is a connection the database counts and nobody is
+      // using.
+      idleTimeoutMillis: process.env['VERCEL'] ? 10_000 : 30_000,
     });
 
     // Without a listener, an idle client erroring out takes the process down.

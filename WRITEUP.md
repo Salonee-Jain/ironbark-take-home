@@ -29,7 +29,7 @@ npm install
 npm run db:up          # Postgres 16, waits until healthy
 npm run db:migrate     # 9 SQL migrations, checksum verified
 npm run etl            # clean and load data/raw/
-npm run api            # http://localhost:4000  (OpenAPI at /docs)
+npm run api            # http://localhost:4000  (OpenAPI at /api/docs)
 npm run web            # http://localhost:5173
 ```
 
@@ -50,7 +50,7 @@ buying inference. A key is only needed to re-run `npm run ai:classify` or
 `npm run ai:report`.
 
 ```bash
-npm test               # 264 tests; the database suites skip if Postgres is down
+npm test               # 265 tests; the database suites skip if Postgres is down
 npm run typecheck
 npm run writeup        # regenerate the tables in section 2 from the rule engine
 ```
@@ -535,7 +535,7 @@ called an improvement.
 ## What I chose to test, and why
 
 The brief asks which parts I chose to test rather than for a coverage number. There
-are **264 tests**, selected by one question: would this failure produce a wrong
+are **265 tests**, selected by one question: would this failure produce a wrong
 compliance number that nobody notices?
 
 | Suite | n | Defends against |
@@ -545,7 +545,7 @@ compliance number that nobody notices?
 | AI grounding | 19 | A hallucinated finding reaching the UI. Written adversarially. |
 | Citation gate | 20 | A generated sentence stating a figure the facts do not contain, including the dangerous case of a correct citation attached to a wrong number. Covers the roundings a correct writer may make and the magnitude shifts they may not. |
 | Emissions | 16 | The SQL arithmetic, computed longhand in the test. Covers the credit note netting off, the MTR-07 correction reaching Scope 2, November staying at zero, and March rising in Scope 1 while Scope 2 collapses. |
-| API | 41 | Contract and tenancy. A second empty workspace checks isolation, which is the failure that does not error: a missing `company_id` reports one client's fuel to another and looks entirely fine. Ten of these cover the correlation endpoint and assert that the month, the meters and both incidents are detected rather than named. |
+| API | 42 | Contract and tenancy. A second empty workspace checks isolation, which is the failure that does not error: a missing `company_id` reports one client's fuel to another and looks entirely fine. Ten of these cover the correlation endpoint and assert that the month, the meters and both incidents are detected rather than named. |
 
 What is deliberately **not** tested: Vue component rendering, and the model's
 judgement. The first is better served by looking at it. The second is not a property

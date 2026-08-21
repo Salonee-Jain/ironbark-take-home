@@ -47,7 +47,7 @@ npm install
 npm run db:up          # Postgres 16 in Docker, waits until healthy
 npm run db:migrate     # 9 SQL migrations, checksum verified
 npm run etl            # clean and load data/raw/
-npm run api            # http://localhost:4000  (OpenAPI at /docs)
+npm run api            # http://localhost:4000  (OpenAPI at /api/docs)
 npm run web            # http://localhost:5173
 ```
 
@@ -68,7 +68,7 @@ without buying inference.
 ## Checks
 
 ```bash
-npm test          # 264 tests; the database suites skip if Postgres is down
+npm test          # 265 tests; the database suites skip if Postgres is down
 npm run typecheck
 npm run writeup   # regenerate the data-quality tables in WRITEUP.md from the rule engine
 ```

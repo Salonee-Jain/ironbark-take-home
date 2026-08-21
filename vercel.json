@@ -1,0 +1,15 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "buildCommand": "npm run build --workspace @ironbark/web",
+  "outputDirectory": "packages/web/dist",
+  "functions": {
+    "api/[...path].ts": {
+      "maxDuration": 60,
+      "includeFiles": "data/ai/**"
+    }
+  },
+  "rewrites": [
+    { "source": "/health", "destination": "/api/health" },
+    { "source": "/((?!api/).*)", "destination": "/index.html" }
+  ]
+}

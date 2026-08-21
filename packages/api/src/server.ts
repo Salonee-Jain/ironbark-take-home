@@ -22,7 +22,7 @@ import { registerRoutes } from './routes/index.js';
  * timing. There is no controller layer, because for read-only endpoints it
  * would only forward arguments.
  *
- * Tenancy: every route except /health, /docs and /api/auth/* runs behind
+ * Tenancy: every route except /health, the docs and /api/auth/* runs behind
  * app.authenticate and takes its company from the verified session cookie.
  *
  * Built without listening so the integration tests can drive it through
@@ -125,7 +125,20 @@ export function buildServer(
       ],
     },
   });
-  app.register(swaggerUi, { routePrefix: '/docs' });
+  // The document itself, always. Generated from the same route schemas the
+  // server validates against, so it cannot describe an API this is not.
+  app.get('/api/openapi.json', { schema: { hide: true } }, () => app.swagger());
+
+  // The browsable UI, only where it can actually read its own files. Its assets
+  // are loaded from disk relative to the installed package, which does not
+  // survive being compiled into a single deployed bundle, so a serverless build
+  // serves the document above and skips the viewer.
+  //
+  // Under /api rather than at the root because on the hosted build everything
+  // outside /api is the static site, and /docs would land on the Vue app.
+  if (!process.env['VERCEL']) {
+    app.register(swaggerUi, { routePrefix: '/api/docs' });
+  }
 
   registerRequestTiming(app);
   registerAuthentication(app);

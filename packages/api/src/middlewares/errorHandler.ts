@@ -27,7 +27,7 @@ export function registerErrorHandler(app: FastifyInstance): void {
       return reply.code(400).send({
         error: 'validation_failed',
         message: error.message,
-        hint: 'See /docs for the accepted parameters.',
+        hint: 'See /api/docs for the accepted parameters.',
       });
     }
 

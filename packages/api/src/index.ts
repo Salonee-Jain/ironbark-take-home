@@ -4,7 +4,7 @@
  *   npm run api
  *
  * Serves monthly emissions by scope, incident trends, and the data-quality
- * report. Interactive documentation at /docs.
+ * report. Interactive documentation at /api/docs.
  */
 import { closePool } from '@ironbark/db';
 import { buildServer } from './server.js';
@@ -31,7 +31,7 @@ for (const signal of ['SIGINT', 'SIGTERM'] as const) {
 
 try {
   await app.listen({ port, host });
-  app.log.info(`docs at http://${host}:${port}/docs`);
+  app.log.info(`docs at http://${host}:${port}/api/docs`);
 } catch (error) {
   app.log.error(error);
   await closePool();

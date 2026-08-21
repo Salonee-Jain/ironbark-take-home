@@ -6,7 +6,7 @@ import { SESSION_COOKIE, type SessionClaims } from '../auth/session.js';
  * The preHandler that turns a cookie into a tenant.
  *
  * A decorator rather than a global hook. A global hook would need its list of
- * exemptions (/health, /docs) inside this file, so adding a public route would
+ * exemptions (/health, the docs) inside this file, so adding a public route would
  * mean editing the authentication middleware. Opting in per route group keeps
  * the decision next to the route.
  *

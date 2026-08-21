@@ -1,6 +1,6 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { dirname, join, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { mkdirSync, writeFileSync } from 'node:fs';
+import { dirname } from 'node:path';
+import { artefactWritePath, readArtefact } from './artefacts.js';
 import type { GroundedFinding, Rejection } from './grounding.js';
 
 /**
@@ -9,8 +9,7 @@ import type { GroundedFinding, Rejection } from './grounding.js';
  * changed as a diff.
  */
 
-const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../../..');
-export const CACHE_PATH = join(repoRoot, 'data', 'ai', 'incident_findings.json');
+export const CACHE_PATH = artefactWritePath('findings');
 
 export type FindingsCache = {
   generatedAt: string;
@@ -32,8 +31,8 @@ export type FindingsCache = {
 };
 
 export function readCache(): FindingsCache | null {
-  if (!existsSync(CACHE_PATH)) return null;
-  return JSON.parse(readFileSync(CACHE_PATH, 'utf8')) as FindingsCache;
+  const contents = readArtefact('findings');
+  return contents === null ? null : (JSON.parse(contents) as FindingsCache);
 }
 
 export function writeCache(cache: FindingsCache): void {

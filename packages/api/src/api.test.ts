@@ -165,9 +165,19 @@ describe('health and docs', () => {
   });
 
   withDb()('serves the OpenAPI document', async () => {
-    const response = await app.inject({ method: 'GET', url: '/docs/json' });
+    // The document, not the viewer. The viewer reads its assets from disk and
+    // is skipped on a serverless build; this route is generated from the same
+    // route schemas the server validates against and is always there.
+    const response = await app.inject({ method: 'GET', url: '/api/openapi.json' });
     expect(response.statusCode).toBe(200);
     expect(response.json()).toHaveProperty('openapi');
+  });
+
+  withDb()('answers the health check under /api too', async () => {
+    // The hosted build serves everything outside /api as the static site, so
+    // the bare /health path is not reachable there.
+    const response = await app.inject({ method: 'GET', url: '/api/health' });
+    expect(response.statusCode).toBe(200);
   });
 });
 

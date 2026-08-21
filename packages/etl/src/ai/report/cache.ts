@@ -1,36 +1,27 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { dirname, join, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { mkdirSync, writeFileSync } from 'node:fs';
+import { dirname } from 'node:path';
+import { artefactWritePath, readArtefact } from '../artefacts.js';
 import type { GeneratedReport } from './generate.js';
 
 /**
  * The committed compliance summary, for the same reason as the findings cache: a
  * reviewer should not have to buy inference to see the feature work.
  *
- * What makes it safe to ship is the `factDigest` recorded in the file. The API
- * serves it only to a dataset whose facts reproduce that digest, so a company
- * that uploads its own export gets no report rather than someone else's
- * narrative over its numbers.
+ * What makes it safe to ship is that the file carries the facts it was written
+ * from. The API re-verifies every claim against the dataset asking for it, so a
+ * company that uploaded its own export is shown nothing rather than someone
+ * else's narrative over its numbers.
  */
 
-const repoRoot = resolve(
-  dirname(fileURLToPath(import.meta.url)),
-  '../../../../..',
-);
-
-export const REPORT_CACHE_PATH = join(
-  repoRoot,
-  'data',
-  'ai',
-  'compliance_summary.json',
-);
+export const REPORT_CACHE_PATH = artefactWritePath('summary');
 
 export type ReportCache = GeneratedReport & { generatedAt: string };
 
 export function readReportCache(): ReportCache | null {
-  if (!existsSync(REPORT_CACHE_PATH)) return null;
+  const contents = readArtefact('summary');
+  if (contents === null) return null;
   try {
-    return JSON.parse(readFileSync(REPORT_CACHE_PATH, 'utf8')) as ReportCache;
+    return JSON.parse(contents) as ReportCache;
   } catch {
     // A malformed artefact is a broken file, not a broken application: the
     // endpoint that reads it should fall back to "no report available" rather
