@@ -20,6 +20,8 @@
   },
   "exports": {
     ".": "./src/ingest.ts",
-    "./ingest": "./src/ingest.ts"
+    "./ingest": "./src/ingest.ts",
+    "./ai/report": "./src/ai/report/index.ts",
+    "./ai/providers": "./src/ai/providers/index.ts"
   }
 }

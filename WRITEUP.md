@@ -20,7 +20,7 @@ Requires **Node 22+** and **Docker**.
 cp .env.example .env
 npm install
 npm run db:up          # Postgres 16, waits until healthy
-npm run db:migrate     # 8 SQL migrations, checksum-verified
+npm run db:migrate     # 9 SQL migrations, checksum-verified
 npm run etl            # clean and load data/raw/
 npm run api            # http://localhost:4000  (OpenAPI at /docs)
 npm run web            # http://localhost:5173
@@ -35,12 +35,14 @@ and quietly skipped on upload.
 Postgres binds to host port **5433**, not 5432, so it will not collide with a local
 install. `npm run db:down` stops it; `npm run db:reset` also destroys the volume.
 
-**No API key is needed.** The AI findings are cached in
-`data/ai/incident_findings.json` and committed, so the whole application runs
-without buying inference. A key is only needed to re-run classification.
+**No API key is needed.** Both AI artefacts — the incident classifications in
+`data/ai/incident_findings.json` and the cited compliance summary in
+`data/ai/compliance_summary.json` — are committed, so the whole application runs
+without buying inference. A key is only needed to re-run `npm run ai:classify` or
+`npm run ai:report`.
 
 ```bash
-npm test               # 238 tests; the DB suites skip if Postgres is down
+npm test               # 264 tests; the DB suites skip if Postgres is down
 npm run typecheck
 npm run writeup        # regenerate the tables in section 2 from the rule engine
 ```
@@ -56,7 +58,7 @@ data/raw/          the client export, never modified
 packages/shared/   domain types used by every layer
 packages/db/       pool, migrations, emissions views
 packages/etl/      parse, clean, load, classify
-packages/api/      Fastify read API + upload
+packages/api/      Fastify read API, upload, compliance summary
 packages/web/      Vue 3 dashboard
 ```
 
@@ -254,17 +256,22 @@ the failure this project is organised against.
 
 ## 4. How I used AI tools building this, and what they got wrong
 
-I built this with **Claude Code** as the primary tool, working in a loop: I set the
-architecture and the decision rules, it drafted, and I checked the output against
-data or a running system rather than against how plausible it read. Nearly
-everything it got wrong was plausible.
+I built this with **Claude Code**, in a fixed division of labour. **I wrote the plan
+first** — the steps in order, the schema, the rule table with an intended action
+against each known defect, the shape of every layer, and what each commit should
+contain. **Claude then wrote the code to that plan and that format**, and **I
+reviewed everything that came back**, against the data or a running system rather
+than against how plausible it read. Nearly everything it got wrong was plausible.
 
-**What worked.** Generating the rule catalogue and the loaders from a spec I wrote,
-where the spec named the defect and the intended action. Writing tests once the
-behaviour was pinned down. Restructuring the AI classifier behind a provider seam
-so it runs against Anthropic or OpenAI. In each case the model was fast at the
-mechanical part and I stayed responsible for the judgement — which record to trust,
-what a rule is entitled to change, what counts as evidence.
+That order matters more than the tool. The decisions this project is judged on —
+what a rule is entitled to correct, what counts as evidence, which numbers a model
+is allowed to state — were made in the plan, before any code existed. The model was
+fast at the mechanical half and never in charge of the judgement.
+
+**What worked.** Generating the rule catalogue and the loaders from the spec, where
+it named the defect and the intended action. Writing tests once the behaviour was
+pinned down. Restructuring the AI classifier behind a provider seam so it runs
+against Anthropic or OpenAI.
 
 **What it got wrong, and how I caught it.** These are from this build, not
 hypotheticals:
@@ -417,6 +424,66 @@ the rest of the numeric rows line up sensibly under Low=1. It is not proof, so
 `INC-SEV-SCALE-01` stays flagged as a question for the client rather than resolved
 in code.
 
+### The cited compliance summary
+
+The second AI feature: a period summary an auditor could read, at
+`GET /api/reports/summary` and under **Summary** in the app.
+
+Classification had a natural anchor — the source description, which a quote has to
+appear in verbatim. A narrative has no text to quote, so the anchor had to be
+manufactured. The order is inverted instead:
+
+1. The API assembles a **fact pack** — around 90 pre-computed figures and source
+   records, each with an id, built from the same repositories the dashboard reads,
+   so the prose cannot disagree with the chart beside it.
+2. The model gets that closed set and is told to select, order and explain. It is
+   told not to calculate: no sums, no ratios, no unit conversions. Both kg and
+   tonnes are in the pack so it never needs one.
+3. Output is a list of **claims**, not paragraphs. A claim is the unit a citation
+   attaches to and the unit the gate can discard on its own, so one bad sentence
+   costs one sentence rather than the report.
+4. The **citation gate** (`packages/etl/src/ai/report/citations.ts`) then asks four
+   questions of every claim: does it cite anything; does every citation name a fact
+   that exists; does it name a record without citing it; and **is every number it
+   states present in one of the facts it cited**.
+
+The fourth is the one that earns its keep. A model that cites correctly and then
+misstates the figure produces the most dangerous output this project can emit — a
+wrong number wearing a citation, which reads as *more* trustworthy than an uncited
+one. Rounding is allowed to exactly the precision written (47 may stand for 47.3);
+a change of magnitude is not (1.2 may not stand for 1,234,567).
+
+Two more layers, matching the incident findings: a database trigger refuses to store
+a claim citing a fact absent from the pack saved with it, and **every claim is
+re-verified on read** against the facts as they are *now*. A stored summary
+therefore cannot outlive the numbers it describes — reload the data and the claims
+that no longer hold are dropped on the way out, with the response saying how many.
+The committed artefact is offered only to a dataset whose facts reproduce the digest
+it was written against, so a company that uploads its own export gets no summary
+rather than somebody else's narrative over its numbers.
+
+**What the gate is not.** It certifies that every figure and every record reference
+is traceable. It cannot certify that the *interpretation* is sound: "Scope 1 rose
+51.6%" and "Scope 1 rose 51.6%, which is excellent news" both pass. Mechanical
+traceability is what a machine can check; judgement stays with the reader, which is
+why every claim renders with its citations visible rather than footnoted away.
+
+**On the run: 21 claims, one rejected.** The rejection was `unsupported-number` on a
+counterfactual sentence; the corrective round reissued it citing the fact it needed.
+The summary opened by refusing to state the headline total without its caveat —
+that it rests on 20 corrected activity records and a month with no fuel invoices —
+which is the behaviour the prompt asks for and the one a compliance reader needs.
+
+**And it caught a bug in my own fact pack.** Its watch list reported that diesel and
+petrol both showed 0 litres beside 143 loaded invoices and 22,052 t of Scope 1, and
+said so as an unresolved contradiction rather than smoothing over it. It was right:
+my query filtered `fuel_type = 'diesel'`, but the source spells it `Diesel` and
+`Petrol (ULP)` — the normalised join key is `factor_key`, which is what the
+emissions views use. The fact pack is now built from `factor_key` with the emission
+factor read from the table rather than repeated in a comment. That is the argument
+for making a model state its uncertainties against a closed set of facts: the
+contradiction was in *my* data, and the constraint is what surfaced it.
+
 ---
 
 ## 5. What I would build next
@@ -441,10 +508,11 @@ duplicate pairs moves Ironline from $8.94M to $10.15M, which is the difference
 between their largest supplier and their second largest. That correction has to
 happen before any Scope 3 figure means anything.
 
-**The AI-drafted compliance summary with citations** (designed, not built): a
-narrative period summary where every claim carries an inline citation to a record ID
-or an aggregate query, passed through the same grounding gate — uncitable claims are
-stripped before rendering rather than softened.
+**Regenerate the summary when the data moves.** The summary already detects that its
+facts have changed and drops the claims that no longer hold, but somebody still has
+to press a button. The next step is a job that regenerates on a load, and a diff
+between consecutive summaries — "this month's report says three things last month's
+did not" is the view a sustainability lead would actually open.
 
 **Alerting on the ratio, not the total.** The March 2026 finding generalises: the
 Scope 1 share is stable for seventeen months and then moves 30 points. That is a
@@ -455,7 +523,7 @@ have called an improvement.
 
 ## What I chose to test, and why
 
-The brief asks which parts I chose to test rather than for coverage. **238 tests**,
+The brief asks which parts I chose to test rather than for coverage. **264 tests**,
 selected by one question: *would this failure produce a wrong compliance number that
 nobody notices?*
 
@@ -464,8 +532,9 @@ nobody notices?*
 | Normalisers | 121 | A misparsed date moving fuel into the wrong month; an unconverted kL row understating Scope 1; a credit note read as positive. Includes the property the audit trail rests on — `litres / conversionFactor` recovers the source cell. |
 | Data-quality engine | 47 | The whole cleaning layer, as a golden run against the real `data/raw/`. Asserts 22 rules, 99 findings and every headline result. Plus fixtures for the three rules this export never triggers, so "silent" stays distinguishable from "broken". |
 | AI grounding | 19 | A hallucinated finding reaching the UI. Written adversarially. |
+| Citation gate | 20 | A generated sentence stating a figure the facts do not contain — including the dangerous case, a correct citation attached to a wrong number. Covers the roundings a correct writer may make and the magnitude shifts they may not. |
 | Emissions | 16 | The SQL arithmetic, computed longhand in the test. Covers the credit netting off, the MTR-07 correction reaching Scope 2, November staying zero, and March rising in Scope 1 while Scope 2 collapses. |
-| API | 35 | Contract and tenancy. A second empty tenant checks isolation — the failure that does not error: a missing `company_id` reports one client's fuel to another and looks entirely fine. Ten of these cover the correlation endpoint, and assert that the month, the meters and both incidents are *detected* rather than named. |
+| API | 41 | Contract and tenancy. A second empty tenant checks isolation — the failure that does not error: a missing `company_id` reports one client's fuel to another and looks entirely fine. Ten of these cover the correlation endpoint, and assert that the month, the meters and both incidents are *detected* rather than named. |
 
 What is deliberately **not** tested: Vue component rendering, and the model's
 judgement. The first is better served by looking at it; the second is not a

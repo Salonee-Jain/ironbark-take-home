@@ -12,6 +12,7 @@
  */
 import { closePool, getPool, loadEnv } from '@ironbark/db';
 import { writeCache, readCache, type FindingsCache } from './cache.js';
+import { BatchResponseSchema } from './schema.js';
 import {
   findMissing,
   verifyFindings,
@@ -36,6 +37,9 @@ import { providerFlag, resolveProvider, type ChatTurn } from './providers/index.
  * rather than re-sent 42 times.
  */
 const BATCH_SIZE = 8;
+
+/** The structured-output contract for this task, handed to whichever vendor runs. */
+const OUTPUT = { name: 'incident_findings', schema: BatchResponseSchema };
 
 type IncidentRow = {
   id: string;
@@ -135,7 +139,7 @@ async function main(): Promise<void> {
       { role: 'user', content: buildUserMessage(batch) },
     ];
 
-    const response = await provider.classify(SYSTEM_PROMPT, turns);
+    const response = await provider.complete(SYSTEM_PROMPT, turns, OUTPUT);
 
     inputTokens += response.inputTokens;
     outputTokens += response.outputTokens;
@@ -167,7 +171,7 @@ async function main(): Promise<void> {
         ),
       });
 
-      const retry = await provider.classify(SYSTEM_PROMPT, turns);
+      const retry = await provider.complete(SYSTEM_PROMPT, turns, OUTPUT);
 
       inputTokens += retry.inputTokens;
       outputTokens += retry.outputTokens;

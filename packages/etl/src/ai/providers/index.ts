@@ -2,7 +2,13 @@ import { createAnthropicProvider, DEFAULT_ANTHROPIC_MODEL } from './anthropic.js
 import { createOpenAiProvider, DEFAULT_OPENAI_MODEL } from './openai.js';
 import { PROVIDER_NAMES, type AiProvider, type ProviderName } from './types.js';
 
-export type { AiProvider, ChatTurn, CompletionResult, ProviderName } from './types.js';
+export type {
+  AiProvider,
+  ChatTurn,
+  CompletionResult,
+  OutputFormat,
+  ProviderName,
+} from './types.js';
 export { PROVIDER_NAMES } from './types.js';
 
 type ProviderSpec = {

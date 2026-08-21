@@ -1,10 +1,10 @@
 import OpenAI from 'openai';
 import { zodTextFormat } from 'openai/helpers/zod';
-import { BatchResponseSchema } from '../schema.js';
 import type {
   AiProvider,
   ChatTurn,
   CompletionResult,
+  OutputFormat,
   Rates,
 } from './types.js';
 
@@ -52,22 +52,26 @@ export function createOpenAiProvider(model: string): AiProvider {
     name: 'openai',
     model,
 
-    async classify(system: string, turns: ChatTurn[]): Promise<CompletionResult> {
+    async complete<T>(
+      system: string,
+      turns: ChatTurn[],
+      output: OutputFormat<T>,
+    ): Promise<CompletionResult<T>> {
       const response = await client.responses.parse({
         model,
         max_output_tokens: MAX_OUTPUT_TOKENS,
         instructions: system,
         input: turns,
-        text: {
-          format: zodTextFormat(BatchResponseSchema, 'incident_findings'),
-        },
+        text: { format: zodTextFormat(output.schema, output.name) },
         ...(effort
           ? { reasoning: { effort: effort as 'low' | 'medium' | 'high' } }
           : {}),
       });
 
       return {
-        parsed: response.output_parsed ?? null,
+        // See the note on the Anthropic side: the SDK parsed the payload against
+        // this exact schema, so narrowing its inferred type to T is sound.
+        parsed: (response.output_parsed ?? null) as T | null,
         inputTokens: response.usage?.input_tokens ?? 0,
         outputTokens: response.usage?.output_tokens ?? 0,
         stopReason: response.incomplete_details?.reason ?? response.status ?? null,

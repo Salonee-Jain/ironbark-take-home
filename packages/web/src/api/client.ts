@@ -1,4 +1,5 @@
 import type {
+  ComplianceSummary,
   DataQualityIssue,
   DataQualityOverview,
   EmissionsSummary,
@@ -147,4 +148,7 @@ export const api = {
   dataQualityIssues: (params = '') =>
     get<{ issues: DataQualityIssue[] }>(`/api/data-quality/issues${params}`),
   outageAnalysis: () => get<OutageAnalysis>('/api/analysis/outage'),
+  complianceSummary: () => get<ComplianceSummary>('/api/reports/summary'),
+  generateComplianceSummary: () =>
+    post<ComplianceSummary>('/api/reports/summary', {}),
 };

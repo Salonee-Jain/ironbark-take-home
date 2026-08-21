@@ -131,6 +131,66 @@ export type UploadResult = {
 };
 
 /**
+ * The cited compliance summary, from `/api/reports/summary`.
+ *
+ * A claim is the unit that carries citations, because it is the unit the
+ * citation gate can accept or discard on its own. `facts` is the closed set the
+ * model was allowed to draw on — the UI renders each citation from it, so a
+ * reader can see the figure behind a sentence without leaving the page.
+ */
+export type ReportFact = {
+  id: string;
+  kind: 'metric' | 'record';
+  label: string;
+  value: number | string;
+  unit: string | null;
+  source: string;
+  detail: string | null;
+};
+
+export type ReportClaim = { text: string; citations: string[] };
+
+export type ReportSection = { section: string; claims: ReportClaim[] };
+
+export type ClaimRejection = {
+  section: string;
+  text: string;
+  citations: string[];
+  reason: string;
+  detail: string;
+  round?: number;
+};
+
+export type ComplianceSummary =
+  | { available: false; reason: string; hint: string }
+  | {
+      available: true;
+      source: 'database' | 'cache-file';
+      period: { from: string; to: string; company: string };
+      generatedAt: string;
+      provider: string;
+      model: string;
+      promptVersion: string;
+      sections: ReportSection[];
+      facts: ReportFact[];
+      verification: {
+        claimsChecked: number;
+        claimsShown: number;
+        claimsRejectedAtGeneration: number;
+        claimsDroppedOnRead: number;
+        droppedOnRead: ClaimRejection[];
+        factsChanged: boolean;
+        note: string;
+      };
+      rejectedAtGeneration: ClaimRejection[];
+      usage: {
+        inputTokens?: number;
+        outputTokens?: number;
+        estimatedCostUsd?: number | null;
+      };
+    };
+
+/**
  * Cross-dataset correlation, from `GET /api/analysis/outage`.
  *
  * A discriminated union on `detected`, because "no outage in this data" is a

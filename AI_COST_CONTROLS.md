@@ -6,9 +6,11 @@ build steps.
 
 ## Where money can be spent today
 
-Exactly one path: `npm run ai:classify`, run by hand. No API route, no ETL step and no CSV
-upload calls a model — `loadAiFindings` (`packages/etl/src/ai/load.ts`) only reads the
-committed cache at `data/ai/incident_findings.json`.
+Three paths, all deliberate: `npm run ai:classify` and `npm run ai:report` run by hand,
+and `POST /api/reports/summary` called by a signed-in workspace owner. No ETL step and no
+CSV upload calls a model — `loadAiFindings` (`packages/etl/src/ai/load.ts`) only reads the
+committed cache at `data/ai/incident_findings.json`, and every read endpoint is served
+from storage.
 
 That means the useful control is a **ceiling**, not a throttle. There is no traffic to
 rate-limit; there is a command that could, under the wrong conditions, cost far more than
@@ -38,11 +40,20 @@ should never be classified under another client's run.
 `npm run ai:classify -- --force` discards the cache and reclassifies everything at full
 cost, with no confirmation and no estimate shown first.
 
-### 3. Step 12 — the planned `POST /api/reports/summary`
+### 3. `POST /api/reports/summary` — now built, and the only paid HTTP route
 
-Not built. This is a paid model behind an HTTP endpoint in a multi-tenant app: every page
-refresh bills. It is the one place where per-tenant *rate limiting* (as opposed to a
-ceiling) genuinely belongs, and it is much cheaper to design in than to retrofit.
+A paid model behind an HTTP endpoint in a multi-tenant app is the exposure this document
+worried about, so the endpoint was built with three of the mitigations already in place:
+
+- **Reads never bill.** `GET` serves the stored summary, or the committed artefact, or an
+  honest "none yet". Only `POST` calls a model, so a dashboard refresh is free.
+- **Owner-only** (`app.requireOwner`), so a read-only member of a workspace cannot spend.
+- **One call plus at most one corrective round** per request — the cost of a generation is
+  bounded by construction rather than by a loop that might not terminate.
+
+What is still missing is a per-workspace rate limit: nothing stops an owner clicking
+Generate twenty times. That is item 5 below, and it is now the highest-value unbuilt
+control rather than a hypothetical one.
 
 ## Shortlist, in order of value
 
@@ -52,7 +63,7 @@ ceiling) genuinely belongs, and it is much cheaper to design in than to retrofit
 | 2 | **`MAX_INCIDENTS_PER_RUN`** (~100) plus a `company_id` filter and `LIMIT` on the query. Over the cap, refuse and require an explicit `--max-incidents=`. | `loadIncidents()` | Closes exposure 1 at the source and fixes the tenant leak. |
 | 3 | **Cost preview and `--yes`.** Print batches, projected tokens and (where a rate is on file) projected spend; require confirmation for `--force` or any run over the cap. | `classify.ts` | Makes the expensive action deliberate rather than incidental. |
 | 4 | **Vendor-side budget caps.** Anthropic Console → Billing → spend limit; OpenAI → project budget limits. Use a **separate project and key for this repo**. | Not code | The only control that cannot be bypassed by a path nobody thought of, and the only one that survives a leaked key. |
-| 5 | **Per-workspace rate limit + result cache** — `@fastify/rate-limit`, and cache the summary per (workspace, period) so repeats are free. | Only once step 12 exists | Without it, refreshing the dashboard is a billable event. |
+| 5 | **Per-workspace rate limit** — `@fastify/rate-limit` on `POST /api/reports/summary`, a few generations per hour. | `reports.routes.ts` | The result cache half of this is already done: reads are served from storage and only `POST` bills. The limit is what stops repeated clicking. |
 
 Recommended minimum: **1, 2 and 4.** Item 4 costs two minutes in a browser and is the only
 actual guarantee; 1 and 2 stop the plausible accident.

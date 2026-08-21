@@ -1,13 +1,20 @@
-import type { BatchResponse } from '../schema.js';
+import type { ZodType } from 'zod';
 
 /**
- * The seam between the classifier and whichever model vendor is configured.
+ * The seam between the AI tasks and whichever model vendor is configured.
  *
- * The classifier owns everything that makes the output trustworthy — the
- * prompt, the batch size, the grounding gate, the corrective round. A provider
- * owns only the wire call. That split is the point: swapping vendors must not
- * be able to change what counts as an acceptable finding, because the gate is
- * the compliance guarantee and it lives on this side of the seam.
+ * A task owns everything that makes its output trustworthy — the prompt, the
+ * batching, the verification gate, the corrective round. A provider owns only
+ * the wire call. That split is the point: swapping vendors must not be able to
+ * change what counts as an acceptable finding, because the gate is the
+ * compliance guarantee and it lives on this side of the seam.
+ *
+ * There are two tasks now — incident classification and the cited compliance
+ * summary — and the seam is generic in the output type rather than naming
+ * either. A provider that knew about `BatchResponse`, as this one did while
+ * classification was the only caller, would have to be edited once per task,
+ * and each edit is a chance to let one task's schema reach the other's vendor
+ * call.
  */
 
 export const PROVIDER_NAMES = ['anthropic', 'openai'] as const;
@@ -20,9 +27,18 @@ export type ProviderName = (typeof PROVIDER_NAMES)[number];
  */
 export type ChatTurn = { role: 'user' | 'assistant'; content: string };
 
-export type CompletionResult = {
+/**
+ * The shape a task requires back.
+ *
+ * `name` is only a label for the vendor's structured-output slot; the schema is
+ * what does the work. Both vendors enforce it server-side, so a malformed
+ * response is impossible rather than merely unlikely.
+ */
+export type OutputFormat<T> = { name: string; schema: ZodType<T> };
+
+export type CompletionResult<T> = {
   /** null when the model returned nothing that matched the schema. */
-  parsed: BatchResponse | null;
+  parsed: T | null;
   inputTokens: number;
   outputTokens: number;
   /** Vendor's own words for why generation stopped, for the error message. */
@@ -32,8 +48,12 @@ export type CompletionResult = {
 export type AiProvider = {
   readonly name: ProviderName;
   readonly model: string;
-  /** Sends one batch. `system` is passed separately because both vendors treat it separately. */
-  classify(system: string, turns: ChatTurn[]): Promise<CompletionResult>;
+  /** Sends one request. `system` is passed separately because both vendors treat it separately. */
+  complete<T>(
+    system: string,
+    turns: ChatTurn[],
+    output: OutputFormat<T>,
+  ): Promise<CompletionResult<T>>;
   /**
    * Estimated spend, or null when no published rate is on file for this model.
    *

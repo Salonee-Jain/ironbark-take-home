@@ -1,11 +1,11 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { zodOutputFormat } from '@anthropic-ai/sdk/helpers/zod';
-import { BatchResponseSchema } from '../schema.js';
 import {
   priceFrom,
   type AiProvider,
   type ChatTurn,
   type CompletionResult,
+  type OutputFormat,
   type Rates,
 } from './types.js';
 
@@ -27,17 +27,25 @@ export function createAnthropicProvider(model: string): AiProvider {
     name: 'anthropic',
     model,
 
-    async classify(system: string, turns: ChatTurn[]): Promise<CompletionResult> {
+    async complete<T>(
+      system: string,
+      turns: ChatTurn[],
+      output: OutputFormat<T>,
+    ): Promise<CompletionResult<T>> {
       const response = await client.messages.parse({
         model,
         max_tokens: MAX_TOKENS,
         system,
         messages: turns as Anthropic.MessageParam[],
-        output_config: { format: zodOutputFormat(BatchResponseSchema) },
+        output_config: { format: zodOutputFormat(output.schema) },
       });
 
       return {
-        parsed: response.parsed_output ?? null,
+        // The helper infers its own output type from the schema it was handed;
+        // narrowing that back to the caller's T is the one cast this seam needs,
+        // and it is safe because the SDK validated the payload against exactly
+        // that schema before returning it.
+        parsed: (response.parsed_output ?? null) as T | null,
         inputTokens: response.usage.input_tokens,
         outputTokens: response.usage.output_tokens,
         stopReason: response.stop_reason,

@@ -138,6 +138,10 @@ export function buildServer(
           name: 'analysis',
           description: 'Findings that need more than one dataset to see',
         },
+        {
+          name: 'reports',
+          description: 'AI compliance summary, with a citation on every claim',
+        },
         { name: 'health', description: 'Liveness' },
       ],
     },

@@ -3,6 +3,7 @@ import { computed, onMounted, ref } from 'vue';
 import { api, ApiError } from './api/client';
 import BarList from './components/BarList.vue';
 import ChartFrame from './components/ChartFrame.vue';
+import CompliancePanel from './components/CompliancePanel.vue';
 import DataQualityPanel from './components/DataQualityPanel.vue';
 import LoginPanel from './components/LoginPanel.vue';
 import UploadPanel from './components/UploadPanel.vue';
@@ -13,6 +14,7 @@ import StackedColumnChart from './components/StackedColumnChart.vue';
 import StatTile from './components/StatTile.vue';
 import { count, monthLabelLong, percent, tonnes } from './format';
 import type {
+  ComplianceSummary,
   DataQualityIssue,
   DataQualityOverview,
   EmissionsSummary,
@@ -42,7 +44,9 @@ const error = ref<ApiError | null>(null);
 const loginError = ref<string | null>(null);
 const signingIn = ref(false);
 const profile = ref<UserProfile | null>(null);
-const section = ref<'overview' | 'emissions' | 'safety' | 'quality' | 'upload'>('overview');
+const section = ref<
+  'overview' | 'emissions' | 'safety' | 'quality' | 'report' | 'upload'
+>('overview');
 
 const months = ref<MonthlyEmissions[]>([]);
 const summary = ref<EmissionsSummary | null>(null);
@@ -51,6 +55,9 @@ const incidents = ref<Incident[]>([]);
 const trends = ref<IncidentTrends | null>(null);
 const dq = ref<DataQualityOverview | null>(null);
 const dqIssues = ref<DataQualityIssue[]>([]);
+const compliance = ref<ComplianceSummary | null>(null);
+const generatingReport = ref(false);
+const reportError = ref<string | null>(null);
 
 const theme = ref<'light' | 'dark'>('light');
 
@@ -89,7 +96,7 @@ async function loadDashboard(): Promise<void> {
 
   try {
     profile.value = await api.me();
-    const [m, s, sa, inc, tr, q, qi, og] = await Promise.all([
+    const [m, s, sa, inc, tr, q, qi, og, cs] = await Promise.all([
       api.monthlyEmissions(),
       api.summary(),
       api.bySiteArea(),
@@ -98,6 +105,7 @@ async function loadDashboard(): Promise<void> {
       api.dataQuality(),
       api.dataQualityIssues('?limit=500'),
       api.outageAnalysis(),
+      api.complianceSummary(),
     ]);
     months.value = m.months;
     summary.value = s;
@@ -107,6 +115,7 @@ async function loadDashboard(): Promise<void> {
     dq.value = q;
     dqIssues.value = qi.issues;
     outage.value = og;
+    compliance.value = cs;
   } catch (e) {
     error.value = e instanceof ApiError ? e : new ApiError(0, String(e));
   } finally {
@@ -135,6 +144,25 @@ async function signOut(): Promise<void> {
   trends.value = null;
   dq.value = null;
   error.value = new ApiError(401, 'You are not signed in.');
+}
+
+/**
+ * The one action in this app that spends money, so it is explicit, owner-only,
+ * and reports its own failure rather than silently leaving the old summary up.
+ */
+async function generateComplianceSummary(): Promise<void> {
+  generatingReport.value = true;
+  reportError.value = null;
+  try {
+    compliance.value = await api.generateComplianceSummary();
+  } catch (e) {
+    reportError.value =
+      e instanceof ApiError
+        ? [e.message, e.hint].filter(Boolean).join(' ')
+        : 'Could not generate the summary.';
+  } finally {
+    generatingReport.value = false;
+  }
 }
 
 function handleUploadComplete(): void {
@@ -229,6 +257,10 @@ onMounted(() => {
         <button type="button" :class="{ active: section === 'quality' }" @click="section = 'quality'">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h14v16H5zM8 9h8M8 13h8M8 17h5" /></svg>
           Data quality
+        </button>
+        <button type="button" :class="{ active: section === 'report' }" @click="section = 'report'">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h7l5 5v13H7zM14 3v5h5M10 13h6M10 17h4" /></svg>
+          Summary
         </button>
         <button
           v-if="profile?.user.role === 'owner'"
@@ -394,6 +426,16 @@ onMounted(() => {
 
       <template v-if="section === 'quality'">
       <DataQualityPanel :overview="dq" :issues="dqIssues" />
+      </template>
+
+      <template v-if="section === 'report' && compliance">
+      <CompliancePanel
+        :summary="compliance"
+        :can-generate="profile?.user.role === 'owner'"
+        :generating="generatingReport"
+        :generate-error="reportError"
+        @generate="generateComplianceSummary"
+      />
       </template>
 
       <template v-if="section !== 'upload'">

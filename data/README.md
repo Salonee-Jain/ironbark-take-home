@@ -10,7 +10,13 @@ traced back to the cell it came from. Editing the raw files would break that cha
 
 ## `ai/`
 
-Cached output from the AI classification step, committed to the repo so the application
-runs end to end without an `ANTHROPIC_API_KEY`. Regenerate with `npm run ai:classify`.
+Cached output from the AI layer, committed to the repo so the application runs end to end
+without an API key.
 
-Created in step 7 — see `PLAN.md`.
+| File | What it is | Regenerate with |
+|---|---|---|
+| `incident_findings.json` | Every incident classified, with the verbatim quote each finding rests on | `npm run ai:classify` |
+| `compliance_summary.json` | The cited period summary, with the fact pack it was written from | `npm run ai:report` |
+
+Both artefacts record the model and prompt version that produced them, and both are
+re-verified when they are loaded rather than trusted because they are committed.
